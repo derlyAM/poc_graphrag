@@ -428,6 +428,46 @@ python scripts/inspect_tecnico_v2.py
 - [ ] **Testing**: Suite completa de tests unitarios e integración
 - [ ] **CI/CD**: Pipeline automatizado de despliegue
 
+## 📚 Documentación Completa
+
+### Documentos Principales
+
+| Documento | Descripción | Audiencia |
+|-----------|-------------|-----------|
+| **[README.md](README.md)** | 👈 Estás aquí - Guía de inicio rápido | Todos |
+| **[CHANGELOG.md](CHANGELOG.md)** | Historial de cambios y versiones | Todos |
+| **[CLAUDE.md](CLAUDE.md)** | Especificaciones técnicas para Claude Code (implementación vs planeado) | Desarrolladores |
+
+### Documentación Técnica (`/docs/`)
+
+| Documento | Descripción | Estado | Audiencia |
+|-----------|-------------|--------|-----------|
+| **[FLUJO_IMPLEMENTADO_EXPLICADO.md](docs/FLUJO_IMPLEMENTADO_EXPLICADO.md)** | 📖 Explicación paso a paso del flujo completo para principiantes | ✅ **NUEVO** | Principiantes/Todos |
+| **[ARQUITECTURA_TECNICA.md](docs/ARQUITECTURA_TECNICA.md)** | Arquitectura técnica detallada del sistema implementado | ✅ Actualizado | Desarrolladores |
+| **[GUIA_USO_PROCESAMIENTO_JERARQUICO.md](docs/GUIA_USO_PROCESAMIENTO_JERARQUICO.md)** | Guía completa de uso y ejemplos prácticos | ✅ Actualizado | Usuarios/Desarrolladores |
+| **[ANALISIS_MEJORAS_RAG.md](docs/ANALISIS_MEJORAS_RAG.md)** | Análisis de mejoras futuras y roadmap | ✅ Actualizado | Arquitectos/PM |
+| **[RESUMEN_EJECUTIVO_MEJORAS.md](docs/RESUMEN_EJECUTIVO_MEJORAS.md)** | Resumen ejecutivo de propuestas de mejora | ✅ Actualizado | Management/Stakeholders |
+
+### Flujo de Lectura Recomendado
+
+#### Para Nuevos Usuarios / Principiantes
+1. **README.md** (este archivo) - Instalación y primeros pasos
+2. **FLUJO_IMPLEMENTADO_EXPLICADO.md** - 📖 Entender cómo funciona el sistema paso a paso
+3. **GUIA_USO_PROCESAMIENTO_JERARQUICO.md** - Cómo usar el sistema
+
+#### Para Desarrolladores
+1. **README.md** - Configuración del entorno
+2. **ARQUITECTURA_TECNICA.md** - Entender la arquitectura
+3. **CLAUDE.md** - Especificaciones detalladas
+4. **CHANGELOG.md** - Historial de cambios
+
+#### Para Planificación de Mejoras
+1. **RESUMEN_EJECUTIVO_MEJORAS.md** - Overview de propuestas
+2. **ANALISIS_MEJORAS_RAG.md** - Detalles técnicos completos
+3. **ARQUITECTURA_TECNICA.md** - Base actual para construir
+
+---
+
 ## 📝 Licencia
 
 Proyecto académico - Universidad
@@ -438,4 +478,5 @@ Para dudas o sugerencias sobre el proyecto, consultar la documentación o crear 
 
 ---
 
+**Versión**: v1.1.1 (2025-10-21)
 **Desarrollado con**: Qdrant • OpenAI • Streamlit • Python 3.11
