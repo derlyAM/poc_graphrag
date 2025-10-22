@@ -1,0 +1,22 @@
+# === CORE DEPENDENCIES ===
+pymupdf4llm
+llama-index
+llama-index-vector-stores-qdrant
+openai
+qdrant-client
+
+# === MACHINE LEARNING ===
+sentence-transformers
+tiktoken
+
+# === UI ===
+streamlit
+
+# === UTILITIES ===
+python-dotenv
+loguru
+pydantic
+
+# === ADDITIONAL ===
+pandas
+numpy
