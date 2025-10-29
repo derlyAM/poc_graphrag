@@ -9,6 +9,8 @@ from loguru import logger
 from src.retrieval.vector_search import VectorSearch
 from src.retrieval.reranker import Reranker
 from src.retrieval.query_enhancer import QueryEnhancer
+from src.retrieval.query_decomposer import QueryDecomposer
+from src.retrieval.multihop_retriever import MultihopRetriever
 from src.generation.llm_client import LLMClient
 from src.generation.citation_manager import CitationManager
 from src.config import config
@@ -24,6 +26,11 @@ class RAGPipeline:
         self.vector_search = VectorSearch()
         self.reranker = Reranker()
         self.query_enhancer = QueryEnhancer()
+        self.query_decomposer = QueryDecomposer()
+        self.multihop_retriever = MultihopRetriever(
+            vector_search=self.vector_search,
+            query_enhancer=self.query_enhancer
+        )
         self.llm_client = LLMClient()
         self.citation_manager = CitationManager()
 
@@ -36,6 +43,7 @@ class RAGPipeline:
         top_k_retrieval: Optional[int] = None,
         top_k_rerank: Optional[int] = None,
         expand_context: bool = True,
+        enable_multihop: bool = True,
     ) -> Dict:
         """
         Process a query through the complete RAG pipeline.
@@ -46,6 +54,7 @@ class RAGPipeline:
             top_k_retrieval: Number of chunks to retrieve (default from config)
             top_k_rerank: Number of chunks after re-ranking (default from config)
             expand_context: Whether to expand context with adjacent chunks
+            enable_multihop: Whether to enable multihop retrieval for complex queries
 
         Returns:
             Complete results dictionary
@@ -63,8 +72,19 @@ class RAGPipeline:
             top_k_rerank = config.retrieval.top_k_rerank
 
         try:
-            # STEP 0: Query Enhancement
-            logger.info("\n[STEP 0/6] Query Enhancement")
+            # STEP 0A: Query Decomposition (if multihop enabled)
+            decomposition = None
+            if enable_multihop:
+                logger.info("\n[STEP 0A/7] Query Decomposition & Complexity Analysis")
+                decomposition = self.query_decomposer.analyze_and_decompose(
+                    question, documento_id
+                )
+                logger.info(f"Complexity: {decomposition['complexity']}")
+                logger.info(f"Requires multihop: {decomposition['requires_multihop']}")
+                logger.info(f"Query type: {decomposition['query_type']}")
+
+            # STEP 0B: Query Enhancement
+            logger.info("\n[STEP 0B/7] Query Enhancement")
             enhancement = self.query_enhancer.enhance_query(question, documento_id)
 
             logger.info(f"Query type: {enhancement['query_type']}")
@@ -79,31 +99,75 @@ class RAGPipeline:
             # Use enhanced query for semantic search (if hybrid/semantic)
             search_query = enhancement.get('enhanced_query', question)
 
-            # STEP 1: Vector Search
-            logger.info(f"\n[STEP 1/6] Vector Search (strategy: {enhancement['retrieval_strategy']})")
+            # STEP 1: Retrieval (Vector Search or Multihop)
             search_start = time.time()
+            multihop_used = False
+            multihop_stats = None
 
-            chunks = self.vector_search.search_with_context(
-                query=search_query,
-                top_k=retrieval_config['top_k'],
-                expand_context=retrieval_config['expand_context'],
-                documento_id=documento_id,
-                capitulo=enhancement['filters'].get('capitulo'),
-                titulo=enhancement['filters'].get('titulo'),
-                articulo=enhancement['filters'].get('articulo'),
-                seccion=enhancement['filters'].get('seccion'),
-                subseccion=enhancement['filters'].get('subseccion'),
-                anexo_numero=enhancement['filters'].get('anexo_numero'),  # NEW
-            )
+            if enable_multihop and decomposition and decomposition['requires_multihop']:
+                # MULTIHOP RETRIEVAL
+                logger.info(f"\n[STEP 1/7] Multihop Retrieval (strategy: {decomposition['search_strategy']})")
+                logger.info(f"Executing {len(decomposition['sub_queries'])} sub-queries")
+
+                # Choose specialized retrieval method based on strategy
+                if decomposition['search_strategy'] == 'multihop_comparison':
+                    retrieval_result = self.multihop_retriever.retrieve_comparison(
+                        original_query=question,
+                        sub_queries=decomposition['sub_queries'],
+                        documento_id=documento_id,
+                        top_k_per_side=15,
+                    )
+                elif decomposition['search_strategy'] == 'multihop_conditional':
+                    retrieval_result = self.multihop_retriever.retrieve_conditional(
+                        original_query=question,
+                        sub_queries=decomposition['sub_queries'],
+                        documento_id=documento_id,
+                    )
+                else:
+                    # Standard multihop
+                    retrieval_result = self.multihop_retriever.retrieve_multihop(
+                        original_query=question,
+                        sub_queries=decomposition['sub_queries'],
+                        search_strategy=decomposition['search_strategy'],
+                        documento_id=documento_id,
+                        top_k_per_query=15,
+                        max_total_chunks=50,
+                    )
+
+                chunks = retrieval_result['chunks']
+                multihop_used = True
+                multihop_stats = self.multihop_retriever.get_retrieval_stats(retrieval_result)
+
+                logger.info(f"Multihop retrieval complete: {len(chunks)} unique chunks")
+                logger.info(f"Stats: {multihop_stats}")
+
+            else:
+                # STANDARD SINGLE-HOP RETRIEVAL
+                logger.info(f"\n[STEP 1/7] Vector Search (strategy: {enhancement['retrieval_strategy']})")
+
+                chunks = self.vector_search.search_with_context(
+                    query=search_query,
+                    top_k=retrieval_config['top_k'],
+                    expand_context=retrieval_config['expand_context'],
+                    documento_id=documento_id,
+                    capitulo=enhancement['filters'].get('capitulo'),
+                    titulo=enhancement['filters'].get('titulo'),
+                    articulo=enhancement['filters'].get('articulo'),
+                    seccion=enhancement['filters'].get('seccion'),
+                    subseccion=enhancement['filters'].get('subseccion'),
+                    anexo_numero=enhancement['filters'].get('anexo_numero'),
+                )
+
+                logger.info(f"Retrieved {len(chunks)} chunks")
 
             search_time = time.time() - search_start
-            logger.info(f"Retrieved {len(chunks)} chunks in {search_time:.2f}s")
+            logger.info(f"Retrieval completed in {search_time:.2f}s")
 
             if not chunks:
                 return self._create_no_results_response(question, start_time, enhancement)
 
             # STEP 2: Re-ranking
-            logger.info("\n[STEP 2/6] Re-ranking")
+            logger.info("\n[STEP 2/7] Re-ranking")
             rerank_start = time.time()
 
             # For structural queries, use more chunks in final result
@@ -122,27 +186,32 @@ class RAGPipeline:
             )
 
             # STEP 3: Generate Answer
-            logger.info("\n[STEP 3/6] Generating Answer")
+            logger.info("\n[STEP 3/7] Generating Answer")
             generation_start = time.time()
 
-            # Pass enhancement info to LLM for better context
+            # Pass enhancement and decomposition info to LLM for better context
+            # Merge both metadata dictionaries
+            query_metadata = {**enhancement}
+            if decomposition:
+                query_metadata.update(decomposition)
+
             llm_result = self.llm_client.generate_answer(
                 query=question,
                 context_chunks=reranked_chunks,
-                query_metadata=enhancement,  # NEW: pass enhancement metadata
+                query_metadata=query_metadata,
             )
 
             generation_time = time.time() - generation_start
             logger.info(f"Answer generated in {generation_time:.2f}s")
 
             # STEP 4: Validate Citations
-            logger.info("\n[STEP 4/6] Validating Citations")
+            logger.info("\n[STEP 4/7] Validating Citations")
             validation = self.citation_manager.validate_answer(
                 llm_result["answer"], reranked_chunks
             )
 
             # STEP 5: Enhance Answer
-            logger.info("\n[STEP 5/6] Enhancing Answer")
+            logger.info("\n[STEP 5/7] Enhancing Answer")
             enhanced_answer = self.citation_manager.enhance_answer(
                 llm_result["answer"], reranked_chunks, add_references=True
             )
@@ -157,7 +226,9 @@ class RAGPipeline:
                 # Query
                 "query": question,
                 "documento_filter": documento_id,
-                "query_enhancement": enhancement,  # NEW: include enhancement info
+                "query_enhancement": enhancement,
+                "query_decomposition": decomposition,  # NEW: include decomposition info
+                "multihop_used": multihop_used,  # NEW: flag if multihop was used
                 # Sources
                 "sources": reranked_chunks,
                 "num_sources": len(reranked_chunks),
@@ -177,8 +248,11 @@ class RAGPipeline:
                     "input_tokens": llm_result["input_tokens"],
                     "output_tokens": llm_result["output_tokens"],
                     "llm_cost": llm_result["cost"],
-                    "query_type": enhancement["query_type"],  # NEW
-                    "retrieval_strategy": enhancement["retrieval_strategy"],  # NEW
+                    "query_type": enhancement["query_type"],
+                    "retrieval_strategy": enhancement["retrieval_strategy"],
+                    "multihop_enabled": enable_multihop,  # NEW
+                    "multihop_used": multihop_used,  # NEW
+                    "multihop_stats": multihop_stats,  # NEW: multihop statistics
                 },
                 # Success
                 "success": True,

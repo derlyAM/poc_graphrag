@@ -89,6 +89,7 @@ Esto procesará los PDFs en `data/` y los cargará en Qdrant.
 
 ### 5. Ejecutar interfaz Streamlit (Fase 5)
 
+
 ```bash
 streamlit run app/streamlit_app.py
 ```

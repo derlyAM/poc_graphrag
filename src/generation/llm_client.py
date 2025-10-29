@@ -132,13 +132,17 @@ ESTRUCTURA DE RESPUESTA:
         Returns:
             Complete prompt
         """
-        # Add special instructions for structural queries
+        # Add special instructions based on query metadata
         special_instructions = ""
 
         if query_metadata:
             query_type = query_metadata.get('query_type', 'semantic')
             is_summary = query_metadata.get('is_summary_request', False)
             filters = query_metadata.get('filters', {})
+
+            # Check if it's a multihop query (from decomposition)
+            is_multihop = query_metadata.get('requires_multihop', False)
+            sub_queries = query_metadata.get('sub_queries', [])
 
             if query_type in ['structural', 'hybrid'] and is_summary:
                 filter_desc = []
@@ -158,6 +162,25 @@ Esta es una solicitud de RESUMEN de {' y '.join(filter_desc)}.
 - Incluye todos los puntos principales del contenido proporcionado
 - Cita cada sección resumida con su artículo correspondiente
 - NO te limites a respuestas cortas, desarrolla el contenido completo
+"""
+
+            # NEW: Special instructions for multihop queries
+            elif is_multihop and sub_queries:
+                special_instructions = f"""
+INSTRUCCIONES ESPECIALES - PREGUNTA COMPLEJA (MULTI-HOP):
+Esta pregunta requiere razonamiento en múltiples pasos. El contexto proporcionado incluye información
+de {len(sub_queries)} búsquedas diferentes para responder:
+
+Sub-preguntas analizadas:
+{chr(10).join(f"  {i+1}. {sq}" for i, sq in enumerate(sub_queries))}
+
+IMPORTANTE:
+- Sintetiza información de TODAS las fuentes proporcionadas
+- Construye una respuesta coherente que conecte los diferentes pasos del razonamiento
+- Si la pregunta es condicional ("¿puedo...?", "¿es posible...?"), verifica TODAS las condiciones
+- Si la pregunta es comparativa, asegúrate de cubrir AMBOS lados de la comparación
+- Cita las fuentes específicas para cada parte del razonamiento
+- Si alguna parte de la información necesaria no está en el contexto, indícalo claramente
 """
 
         prompt = f"""CONTEXTO RECUPERADO DE DOCUMENTOS NORMATIVOS:

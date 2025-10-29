@@ -8,10 +8,14 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import warnings
 import streamlit as st
 from loguru import logger
 from src.pipeline import RAGPipeline
 from src.config import config
+
+# Suppress Streamlit ScriptRunContext warning
+warnings.filterwarnings("ignore", message=".*ScriptRunContext.*")
 
 # Configure page
 st.set_page_config(
@@ -119,6 +123,18 @@ def render_sidebar():
                 help="Incluir chunks adyacentes para más contexto"
             )
 
+            st.markdown("---")
+
+            # Multihop settings (NEW v1.2.0)
+            enable_multihop = st.checkbox(
+                "Multihop Retrieval",
+                value=True,
+                help="🚀 NUEVO: Activa razonamiento multi-paso para queries complejas (condicionales, comparativas, procedurales). Más lento pero más preciso."
+            )
+
+            if enable_multihop:
+                st.info("💡 Multihop detecta automáticamente queries complejas y las descompone en sub-queries para mejor precisión.")
+
         st.markdown("---")
 
         # System info
@@ -146,25 +162,104 @@ def render_sidebar():
         st.markdown("---")
 
         # Example queries
-        st.markdown("### 💡 Ejemplos")
-        st.markdown("""
-        - ¿Qué es un OCAD?
-        - ¿Cuáles son los requisitos para viabilizar un proyecto?
-        - Explica el proceso de ajuste de proyectos
-        - ¿Qué es el Sistema General de Regalías?
-        """)
+        st.markdown("### 💡 Ejemplos de Queries")
+
+        with st.expander("📝 Queries Simples"):
+            st.markdown("""
+            - ¿Qué es un OCAD?
+            - ¿Qué es el Sistema General de Regalías?
+            - Define proyecto de inversión
+            """)
+
+        with st.expander("🔄 Queries Multihop (Complejas)"):
+            st.markdown("""
+            **Condicionales:**
+            - ¿Puedo ajustar el cronograma si estoy en fase II?
+            - Si mi proyecto es de salud, ¿qué OCAD lo evalúa?
+
+            **Comparativas:**
+            - Diferencias entre Acuerdo 03/2021 y 13/2025
+            - Compara requisitos de CTEI vs infraestructura
+
+            **Procedurales:**
+            - Proceso completo desde radicación hasta desembolso
+            - ¿Cómo solicitar ajuste a proyecto aprobado?
+            """)
+
+        with st.expander("💡 Cómo Formular Queries Efectivas"):
+            st.markdown("""
+            **Para mejores resultados:**
+
+            ✅ **SÍ - Menciona secciones específicas:**
+            - "sección 18 productos esperados"
+            - "sección 25 fuentes de financiación"
+
+            ✅ **SÍ - Usa terminología del documento:**
+            - "productos esperados" en vez de "productos construidos"
+            - "fuentes de financiación" en vez de "presupuesto"
+
+            ✅ **SÍ - Sé específico:**
+            - "¿Qué requisitos hay para proyectos de CTEI en fase III?"
+            - En vez de: "¿Qué requisitos hay?"
+
+            ❌ **NO - Queries muy genéricas:**
+            - "cuéntame del documento"
+            - "qué dice aquí"
+            """)
+
+        # Query tips button
+        if st.button("📖 Ver Guía Completa de Queries"):
+            st.session_state.show_guide = True
 
         return {
             "documento_id": documento_id,
             "top_k_retrieval": top_k_retrieval,
             "top_k_rerank": top_k_rerank,
             "expand_context": expand_context,
+            "enable_multihop": enable_multihop,
         }
 
 
 def render_answer(result):
     """Render the answer section."""
     st.markdown("## 💬 Respuesta")
+
+    # Show multihop info if used (NEW v1.2.0)
+    if result.get("multihop_used"):
+        decomposition = result.get("query_decomposition", {})
+
+        with st.expander("🚀 Análisis Multihop (Click para detalles)", expanded=False):
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric("Tipo de Query", decomposition.get("query_type", "N/A").title())
+
+            with col2:
+                st.metric("Complejidad", decomposition.get("complexity", "N/A").title())
+
+            with col3:
+                st.metric("Sub-queries", len(decomposition.get("sub_queries", [])))
+
+            if decomposition.get("sub_queries"):
+                st.markdown("**Sub-queries ejecutadas:**")
+                for i, sq in enumerate(decomposition["sub_queries"], 1):
+                    st.markdown(f"{i}. {sq}")
+
+            # Show multihop stats if available
+            multihop_stats = result.get("metrics", {}).get("multihop_stats")
+            if multihop_stats:
+                st.markdown("---")
+                st.markdown("**Estadísticas de Retrieval:**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"- Total chunks únicos: {multihop_stats.get('total_chunks', 0)}")
+                    st.write(f"- Score promedio: {multihop_stats.get('avg_score', 0):.4f}")
+                with col2:
+                    chunks_by_sources = multihop_stats.get('chunks_by_num_sources', {})
+                    if chunks_by_sources:
+                        st.write("- Chunks por # de fuentes:")
+                        for num, count in sorted(chunks_by_sources.items()):
+                            st.write(f"  • {num} fuente(s): {count} chunks")
 
     # Answer text
     answer = result.get("answer", "")
@@ -181,10 +276,19 @@ def render_sources(sources):
     st.markdown("## 📚 Fuentes Consultadas")
 
     for i, chunk in enumerate(sources, 1):
-        with st.expander(
-            f"Fuente {i}: {chunk.get('citacion_corta', 'N/A')} "
-            f"(Score: {chunk.get('rerank_score', chunk.get('score', 0)):.3f})"
-        ):
+        # Check if this chunk was found by multiple sub-queries (multihop)
+        sub_query_sources = chunk.get('sub_query_source', [])
+        is_multihop_chunk = len(sub_query_sources) > 1
+
+        # Build title with multihop indicator
+        title = f"Fuente {i}: {chunk.get('citacion_corta', 'N/A')}"
+        score = chunk.get('fused_score', chunk.get('rerank_score', chunk.get('score', 0)))
+        title += f" (Score: {score:.3f})"
+
+        if is_multihop_chunk:
+            title += f" 🔗 {len(sub_query_sources)} fuentes"
+
+        with st.expander(title):
             col1, col2 = st.columns([2, 1])
 
             with col1:
@@ -192,9 +296,20 @@ def render_sources(sources):
                 st.markdown(f"**Artículo:** {chunk.get('articulo', 'N/A')}")
                 st.markdown(f"**Tipo:** {chunk.get('tipo_contenido', 'N/A').title()}")
 
+                # Show sub-query sources if multihop
+                if sub_query_sources:
+                    st.markdown(f"**Encontrado por {len(sub_query_sources)} sub-query(s):**")
+                    for sq in sub_query_sources[:3]:  # Show max 3
+                        st.markdown(f"- _{sq[:80]}..._" if len(sq) > 80 else f"- _{sq}_")
+
             with col2:
                 st.markdown(f"**Tokens:** {chunk.get('longitud_tokens', 0)}")
-                if chunk.get('rerank_score'):
+                if chunk.get('fused_score'):
+                    st.markdown(f"**Score Original:** {chunk.get('score', 0):.3f}")
+                    st.markdown(f"**Score Fusionado:** {chunk.get('fused_score', 0):.3f}")
+                    if chunk.get('boost_factor'):
+                        st.markdown(f"**Boost:** {chunk.get('boost_factor', 1.0):.1f}x")
+                elif chunk.get('rerank_score'):
                     st.markdown(f"**Score Vectorial:** {chunk.get('original_score', 0):.3f}")
                     st.markdown(f"**Score Re-rank:** {chunk.get('rerank_score', 0):.3f}")
 
@@ -208,6 +323,216 @@ def render_sources(sources):
                     st.text(text)
             else:
                 st.text(text)
+
+
+def render_query_guide():
+    """Render complete query guide (NEW v1.2.0)."""
+    st.markdown("# 📖 Guía Completa: Cómo Formular Queries Efectivas")
+
+    st.markdown("""
+    Esta guía te ayudará a obtener mejores resultados del sistema RAG.
+    """)
+
+    st.markdown("---")
+
+    # Section 1: Query Types
+    st.markdown("## 1️⃣ Tipos de Queries")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("### ✅ Queries Simples (Single-hop)")
+        st.markdown("""
+        **Características:**
+        - Una sola pregunta directa
+        - Respuesta en 1-2 fuentes
+        - Rápidas (3-5 segundos)
+
+        **Ejemplos:**
+        ```
+        ✓ ¿Qué es un OCAD?
+        ✓ Define proyecto de inversión
+        ✓ ¿Qué es el SGR?
+        ```
+        """)
+
+    with col2:
+        st.markdown("### 🚀 Queries Complejas (Multihop)")
+        st.markdown("""
+        **Características:**
+        - Requieren múltiples pasos
+        - Información de varias fuentes
+        - Más lentas (8-15 segundos)
+
+        **Ejemplos:**
+        ```
+        ✓ ¿Puedo ajustar X si tengo Y?
+        ✓ Diferencias entre A y B
+        ✓ Proceso completo de X a Z
+        ```
+        """)
+
+    st.markdown("---")
+
+    # Section 2: Best Practices
+    st.markdown("## 2️⃣ Mejores Prácticas")
+
+    st.success("""
+    ### ✅ SÍ - Menciona secciones específicas
+
+    Para **Documento Técnico V2**, usa números de sección:
+    - "sección 18 productos esperados"
+    - "sección 25 fuentes de financiación"
+    - "sección 6 antecedentes"
+
+    Para **Acuerdo Único 2025**, usa capítulos/artículos:
+    - "capítulo 4 ajustes de proyectos"
+    - "artículo 4.5.1.2"
+    - "título 3"
+    """)
+
+    st.success("""
+    ### ✅ SÍ - Usa terminología del documento
+
+    **Documento Técnico:**
+    - "productos esperados" (no "productos construidos")
+    - "fuentes de financiación" (no "presupuesto")
+    - "resultados e impactos" (no "resultados del proyecto")
+
+    **Acuerdo Único:**
+    - "viabilización de proyectos" (no "aprobación")
+    - "ajustes a proyectos" (no "modificaciones")
+    - "OCAD" (no "comité")
+    """)
+
+    st.success("""
+    ### ✅ SÍ - Sé específico y contextual
+
+    **Mal:**
+    - "¿Qué requisitos hay?"
+
+    **Bien:**
+    - "¿Qué requisitos hay para proyectos de CTEI en fase III?"
+
+    **Mal:**
+    - "cuéntame del proyecto"
+
+    **Bien:**
+    - "¿Cuáles son los productos esperados del proyecto en la sección 18?"
+    """)
+
+    st.error("""
+    ### ❌ NO - Queries muy genéricas
+
+    Estas queries suelen fallar:
+    - "cuéntame del documento"
+    - "qué dice aquí"
+    - "dame información"
+    - "resumen" (sin especificar qué resumir)
+    """)
+
+    st.markdown("---")
+
+    # Section 3: Examples by Document
+    st.markdown("## 3️⃣ Ejemplos por Documento")
+
+    with st.expander("📄 Documento Técnico V2", expanded=True):
+        st.markdown("""
+        **Queries Efectivas:**
+
+        1. **Sobre productos:**
+           - ✅ "sección 18 productos esperados del proyecto"
+           - ✅ "¿cuáles son los entregables en la sección 18?"
+
+        2. **Sobre presupuesto:**
+           - ✅ "sección 25 resumen de fuentes de financiación"
+           - ✅ "¿cuál es el valor total del proyecto en la sección 25?"
+
+        3. **Sobre metodología:**
+           - ✅ "sección 14 metodología propuesta"
+           - ✅ "¿cuál es la metodología en la sección 14?"
+
+        4. **Queries Complejas (Multihop):**
+           - ✅ "¿cuáles son los productos esperados y cuál es el valor total del proyecto?"
+           - ✅ "compara la metodología de la sección 14 con los resultados de la sección 17"
+        """)
+
+    with st.expander("📄 Acuerdo Único 2025"):
+        st.markdown("""
+        **Queries Efectivas:**
+
+        1. **Sobre ajustes:**
+           - ✅ "capítulo 4 ajustes a proyectos aprobados"
+           - ✅ "¿qué variables puedo ajustar según el artículo 4.5.1.2?"
+
+        2. **Sobre procedimientos:**
+           - ✅ "proceso de viabilización de proyectos"
+           - ✅ "¿cómo se solicita un ajuste a un proyecto aprobado?"
+
+        3. **Queries Complejas (Multihop):**
+           - ✅ "¿puedo ajustar el cronograma de un proyecto en fase II?"
+           - ✅ "diferencias entre proyectos de CTEI y de infraestructura"
+        """)
+
+    st.markdown("---")
+
+    # Section 4: Understanding Results
+    st.markdown("## 4️⃣ Interpretando Resultados")
+
+    st.info("""
+    ### 🔍 Scores de Relevancia
+
+    - **> 0.8**: Excelente coincidencia
+    - **0.6 - 0.8**: Buena coincidencia
+    - **0.3 - 0.6**: Coincidencia moderada
+    - **< 0.3**: Baja coincidencia (considera reformular)
+
+    Si todos los scores son < 0.3, intenta:
+    1. Mencionar la sección/capítulo específico
+    2. Usar terminología exacta del documento
+    3. Ser más específico en tu pregunta
+    """)
+
+    st.info("""
+    ### 🚀 Indicadores Multihop
+
+    Cuando ves **"🚀 Multihop Retrieval"**:
+    - El sistema detectó que tu query es compleja
+    - Se ejecutaron múltiples búsquedas (sub-queries)
+    - Chunks marcados con **🔗** fueron encontrados por varias sub-queries (más relevantes)
+
+    **Boost Factor:**
+    - 1.0x: Encontrado por 1 sub-query
+    - 1.3x: Encontrado por 2 sub-queries (más relevante)
+    - 1.5x: Encontrado por 3+ sub-queries (muy relevante)
+    """)
+
+    st.markdown("---")
+
+    # Section 5: Tips
+    st.markdown("## 5️⃣ Tips Avanzados")
+
+    st.markdown("""
+    ### 💡 Para Queries Multihop (Complejas)
+
+    1. **Condicionales ("¿Puedo X si Y?"):**
+       - El sistema verificará automáticamente ambas condiciones
+       - Ejemplo: "¿Puedo ajustar el cronograma si estoy en fase II?"
+
+    2. **Comparativas ("Diferencias entre A y B"):**
+       - El sistema buscará información de ambos lados
+       - Ejemplo: "Diferencias entre proyectos de CTEI y de infraestructura"
+
+    3. **Procedurales ("Proceso de X"):**
+       - El sistema buscará múltiples pasos del proceso
+       - Ejemplo: "Proceso completo desde radicación hasta desembolso"
+
+    ### ⚡ Para Mejor Performance
+
+    - Queries simples: Desactiva Multihop (más rápido)
+    - Queries complejas: Activa Multihop (más preciso)
+    - Si no estás seguro: Déjalo activado (se activa solo cuando es necesario)
+    """)
 
 
 def render_metrics(metrics):
@@ -256,6 +581,10 @@ def render_metrics(metrics):
             st.write(f"- Tokens salida: {metrics.get('output_tokens', 0):,}")
             st.write(f"- Costo: ${metrics.get('llm_cost', 0):.6f}")
 
+        # Show multihop indicator
+        if metrics.get('multihop_used'):
+            st.info("🚀 Esta query usó **Multihop Retrieval** (búsquedas múltiples)")
+
 
 def main():
     """Main Streamlit app."""
@@ -280,6 +609,14 @@ def main():
 
     # Main content
     st.markdown("---")
+
+    # Show query guide if requested
+    if st.session_state.get("show_guide", False):
+        render_query_guide()
+        if st.button("❌ Cerrar Guía"):
+            st.session_state.show_guide = False
+            st.rerun()
+        return
 
     # Query input
     st.markdown("## 🔍 Consulta")
@@ -307,6 +644,7 @@ def main():
                     top_k_retrieval=config_params["top_k_retrieval"],
                     top_k_rerank=config_params["top_k_rerank"],
                     expand_context=config_params["expand_context"],
+                    enable_multihop=config_params["enable_multihop"],  # NEW v1.2.0
                 )
 
                 # Update total cost

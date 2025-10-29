@@ -7,14 +7,19 @@
 
 ## ESTADO DEL PROYECTO
 
-**Versión Actual**: v1.1.1 (2025-10-21)
-**Estado**: Producción - MVP Funcional
+**Versión Actual**: v1.2.0 (2025-10-28)
+**Estado**: Producción - Sistema con Multihop Retrieval
 
 ### Funcionalidad Implementada (✅)
 - ✅ Procesamiento jerárquico universal (documentos legales, técnicos)
 - ✅ Búsqueda vectorial con Qdrant
 - ✅ Re-ranking con cross-encoder
-- ✅ Generación con GPT-4o-mini
+- ✅ **Sistema Multihop Retrieval** (NUEVO v1.2.0)
+  - ✅ QueryDecomposer para análisis de complejidad
+  - ✅ MultihopRetriever para búsquedas iterativas
+  - ✅ Fusion scoring para chunks duplicados
+  - ✅ Soporte para queries condicionales, comparativas, procedurales
+- ✅ Generación con GPT-4o-mini (prompts especializados para multihop)
 - ✅ Sistema de citación legal
 - ✅ Interfaz Streamlit
 - ✅ Expansión de contexto con chunks adyacentes
@@ -24,8 +29,11 @@
 - 🚧 Metadata semántico enriquecido
 
 ### Planeado (📋)
+- 📋 Auto-corrección inteligente (Fase 2 Multihop)
+- 📋 Verificación de completitud (Fase 2 Multihop)
+- 📋 Análisis de referencias cruzadas
 - 📋 Neo4j para grafo de conocimiento
-- 📋 LangGraph para sistema multi-agente
+- 📋 LangGraph para sistema multi-agente avanzado (Fase 3 Multihop)
 - 📋 Redis para caché
 - 📋 Búsqueda híbrida (vector + keyword BM25)
 - 📋 FastAPI REST API
