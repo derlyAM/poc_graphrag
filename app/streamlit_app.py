@@ -125,15 +125,27 @@ def render_sidebar():
 
             st.markdown("---")
 
-            # Multihop settings (NEW v1.2.0)
+            # Multihop settings (v1.2.0)
             enable_multihop = st.checkbox(
                 "Multihop Retrieval",
                 value=True,
-                help="🚀 NUEVO: Activa razonamiento multi-paso para queries complejas (condicionales, comparativas, procedurales). Más lento pero más preciso."
+                help="🚀 Activa razonamiento multi-paso para queries complejas (condicionales, comparativas, procedurales). Más lento pero más preciso."
             )
 
             if enable_multihop:
                 st.info("💡 Multihop detecta automáticamente queries complejas y las descompone en sub-queries para mejor precisión.")
+
+            st.markdown("---")
+
+            # HyDE settings (NEW v1.3.0)
+            enable_hyde = st.checkbox(
+                "HyDE (Hypothetical Document Embeddings)",
+                value=True,
+                help="🔬 NUEVO: Genera documentos hipotéticos para mejorar búsqueda semántica. Especialmente útil para queries con terminología incorrecta o definiciones. Incrementa costo ~15%."
+            )
+
+            if enable_hyde:
+                st.info("💡 HyDE traduce automáticamente tu query al estilo del documento y activa fallback si los resultados son pobres.")
 
         st.markdown("---")
 
@@ -217,6 +229,7 @@ def render_sidebar():
             "top_k_rerank": top_k_rerank,
             "expand_context": expand_context,
             "enable_multihop": enable_multihop,
+            "enable_hyde": enable_hyde,  # NEW v1.3.0
         }
 
 
@@ -224,7 +237,27 @@ def render_answer(result):
     """Render the answer section."""
     st.markdown("## 💬 Respuesta")
 
-    # Show multihop info if used (NEW v1.2.0)
+    # Show HyDE info if used (NEW v1.3.0)
+    hyde_metadata = result.get("hyde_metadata", {})
+    if hyde_metadata.get("hyde_used"):
+        with st.expander("🔬 Análisis HyDE (Click para detalles)", expanded=False):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.metric("HyDE Activado", "Sí")
+                st.metric("Fallback Usado", "Sí" if hyde_metadata.get("hyde_fallback_used") else "No")
+
+            with col2:
+                st.metric("Score Promedio", f"{hyde_metadata.get('hyde_avg_score', 0):.3f}")
+
+            if hyde_metadata.get("hyde_doc"):
+                st.markdown("**Documento Hipotético Generado:**")
+                st.text(hyde_metadata["hyde_doc"][:300] + "..." if len(hyde_metadata["hyde_doc"]) > 300 else hyde_metadata["hyde_doc"])
+
+            if hyde_metadata.get("hyde_fallback_used"):
+                st.success("✅ HyDE fallback mejoró los resultados automáticamente")
+
+    # Show multihop info if used (v1.2.0)
     if result.get("multihop_used"):
         decomposition = result.get("query_decomposition", {})
 
@@ -560,9 +593,10 @@ def render_metrics(metrics):
         )
 
     with col4:
+        total_cost = metrics.get('total_cost', metrics.get('llm_cost', 0))
         st.metric(
-            "Costo",
-            f"${metrics.get('llm_cost', 0):.6f}"
+            "Costo Total",
+            f"${total_cost:.6f}"
         )
 
     # Detailed metrics in expander
@@ -579,11 +613,25 @@ def render_metrics(metrics):
             st.markdown("**Generación:**")
             st.write(f"- Tokens entrada: {metrics.get('input_tokens', 0):,}")
             st.write(f"- Tokens salida: {metrics.get('output_tokens', 0):,}")
-            st.write(f"- Costo: ${metrics.get('llm_cost', 0):.6f}")
+            st.write(f"- Costo LLM: ${metrics.get('llm_cost', 0):.6f}")
 
-        # Show multihop indicator
+            # HyDE cost if used
+            if metrics.get('hyde_cost', 0) > 0:
+                st.write(f"- Costo HyDE: ${metrics.get('hyde_cost', 0):.6f}")
+                st.write(f"- **Costo Total: ${metrics.get('total_cost', 0):.6f}**")
+
+        # Show indicators for advanced features
+        features_used = []
         if metrics.get('multihop_used'):
-            st.info("🚀 Esta query usó **Multihop Retrieval** (búsquedas múltiples)")
+            features_used.append("🚀 **Multihop Retrieval** (búsquedas múltiples)")
+        if metrics.get('hyde_used'):
+            features_used.append("🔬 **HyDE** (documento hipotético)")
+
+        if features_used:
+            st.markdown("---")
+            st.markdown("**Características Avanzadas Usadas:**")
+            for feature in features_used:
+                st.info(feature)
 
 
 def main():
@@ -644,12 +692,13 @@ def main():
                     top_k_retrieval=config_params["top_k_retrieval"],
                     top_k_rerank=config_params["top_k_rerank"],
                     expand_context=config_params["expand_context"],
-                    enable_multihop=config_params["enable_multihop"],  # NEW v1.2.0
+                    enable_multihop=config_params["enable_multihop"],  # v1.2.0
+                    enable_hyde=config_params["enable_hyde"],  # NEW v1.3.0
                 )
 
-                # Update total cost
+                # Update total cost (including HyDE)
                 if result.get("success") and result.get("metrics"):
-                    st.session_state.total_cost += result["metrics"].get("llm_cost", 0)
+                    st.session_state.total_cost += result["metrics"].get("total_cost", result["metrics"].get("llm_cost", 0))
 
                 # Store result
                 st.session_state.last_result = result

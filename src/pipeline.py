@@ -11,6 +11,7 @@ from src.retrieval.reranker import Reranker
 from src.retrieval.query_enhancer import QueryEnhancer
 from src.retrieval.query_decomposer import QueryDecomposer
 from src.retrieval.multihop_retriever import MultihopRetriever
+from src.retrieval.hyde_retriever import HyDERetriever
 from src.generation.llm_client import LLMClient
 from src.generation.citation_manager import CitationManager
 from src.config import config
@@ -31,6 +32,7 @@ class RAGPipeline:
             vector_search=self.vector_search,
             query_enhancer=self.query_enhancer
         )
+        self.hyde_retriever = HyDERetriever()
         self.llm_client = LLMClient()
         self.citation_manager = CitationManager()
 
@@ -44,6 +46,7 @@ class RAGPipeline:
         top_k_rerank: Optional[int] = None,
         expand_context: bool = True,
         enable_multihop: bool = True,
+        enable_hyde: bool = True,
     ) -> Dict:
         """
         Process a query through the complete RAG pipeline.
@@ -55,6 +58,7 @@ class RAGPipeline:
             top_k_rerank: Number of chunks after re-ranking (default from config)
             expand_context: Whether to expand context with adjacent chunks
             enable_multihop: Whether to enable multihop retrieval for complex queries
+            enable_hyde: Whether to enable HyDE (Hypothetical Document Embeddings)
 
         Returns:
             Complete results dictionary
@@ -103,6 +107,7 @@ class RAGPipeline:
             search_start = time.time()
             multihop_used = False
             multihop_stats = None
+            hyde_result = None  # Initialize hyde_result for all paths
 
             if enable_multihop and decomposition and decomposition['requires_multihop']:
                 # MULTIHOP RETRIEVAL
@@ -142,23 +147,45 @@ class RAGPipeline:
                 logger.info(f"Stats: {multihop_stats}")
 
             else:
-                # STANDARD SINGLE-HOP RETRIEVAL
-                logger.info(f"\n[STEP 1/7] Vector Search (strategy: {enhancement['retrieval_strategy']})")
+                # STANDARD SINGLE-HOP RETRIEVAL (with optional HyDE)
+                if enable_hyde:
+                    # STEP 1: HyDE-enhanced Retrieval
+                    logger.info(f"\n[STEP 1/7] HyDE-Enhanced Retrieval (strategy: {enhancement['retrieval_strategy']})")
 
-                chunks = self.vector_search.search_with_context(
-                    query=search_query,
-                    top_k=retrieval_config['top_k'],
-                    expand_context=retrieval_config['expand_context'],
-                    documento_id=documento_id,
-                    capitulo=enhancement['filters'].get('capitulo'),
-                    titulo=enhancement['filters'].get('titulo'),
-                    articulo=enhancement['filters'].get('articulo'),
-                    seccion=enhancement['filters'].get('seccion'),
-                    subseccion=enhancement['filters'].get('subseccion'),
-                    anexo_numero=enhancement['filters'].get('anexo_numero'),
-                )
+                    hyde_result = self.hyde_retriever.retrieve(
+                        vector_search=self.vector_search,
+                        question=question,
+                        enhancement=enhancement,
+                        decomposition=decomposition,
+                        documento_id=documento_id,
+                        top_k=retrieval_config['top_k'],
+                        enable_fallback=True,
+                        fallback_threshold=0.30,
+                    )
 
-                logger.info(f"Retrieved {len(chunks)} chunks")
+                    chunks = hyde_result['chunks']
+                    logger.info(f"Retrieved {len(chunks)} chunks (HyDE used: {hyde_result['hyde_used']})")
+                    if hyde_result['fallback_used']:
+                        logger.info("HyDE fallback was activated")
+
+                else:
+                    # Standard vector search without HyDE
+                    logger.info(f"\n[STEP 1/7] Vector Search (strategy: {enhancement['retrieval_strategy']})")
+
+                    chunks = self.vector_search.search_with_context(
+                        query=search_query,
+                        top_k=retrieval_config['top_k'],
+                        expand_context=retrieval_config['expand_context'],
+                        documento_id=documento_id,
+                        capitulo=enhancement['filters'].get('capitulo'),
+                        titulo=enhancement['filters'].get('titulo'),
+                        articulo=enhancement['filters'].get('articulo'),
+                        seccion=enhancement['filters'].get('seccion'),
+                        subseccion=enhancement['filters'].get('subseccion'),
+                        anexo_numero=enhancement['filters'].get('anexo_numero'),
+                    )
+
+                    logger.info(f"Retrieved {len(chunks)} chunks")
 
             search_time = time.time() - search_start
             logger.info(f"Retrieval completed in {search_time:.2f}s")
@@ -219,6 +246,19 @@ class RAGPipeline:
             # Build complete result
             total_time = time.time() - start_time
 
+            # Extract HyDE metadata (if used)
+            hyde_metadata = {}
+            total_cost = llm_result["cost"]
+
+            if enable_hyde and hyde_result:
+                hyde_metadata = {
+                    "hyde_used": hyde_result.get("hyde_used", False),
+                    "hyde_fallback_used": hyde_result.get("fallback_used", False),
+                    "hyde_doc": hyde_result.get("hyde_doc"),  # For debugging
+                    "hyde_avg_score": hyde_result.get("avg_score", 0.0),
+                }
+                total_cost += hyde_result.get("hyde_cost", 0.0)
+
             result = {
                 # Answer
                 "answer": enhanced_answer,
@@ -229,6 +269,7 @@ class RAGPipeline:
                 "query_enhancement": enhancement,
                 "query_decomposition": decomposition,  # NEW: include decomposition info
                 "multihop_used": multihop_used,  # NEW: flag if multihop was used
+                "hyde_metadata": hyde_metadata,  # NEW: HyDE information
                 # Sources
                 "sources": reranked_chunks,
                 "num_sources": len(reranked_chunks),
@@ -248,11 +289,15 @@ class RAGPipeline:
                     "input_tokens": llm_result["input_tokens"],
                     "output_tokens": llm_result["output_tokens"],
                     "llm_cost": llm_result["cost"],
+                    "hyde_cost": hyde_result.get("hyde_cost", 0.0) if hyde_result else 0.0,
+                    "total_cost": total_cost,  # NEW: total cost including HyDE
                     "query_type": enhancement["query_type"],
                     "retrieval_strategy": enhancement["retrieval_strategy"],
                     "multihop_enabled": enable_multihop,  # NEW
                     "multihop_used": multihop_used,  # NEW
                     "multihop_stats": multihop_stats,  # NEW: multihop statistics
+                    "hyde_enabled": enable_hyde,  # NEW
+                    "hyde_used": hyde_metadata.get("hyde_used", False),  # NEW
                 },
                 # Success
                 "success": True,
@@ -260,7 +305,7 @@ class RAGPipeline:
 
             logger.info(f"\n{'='*60}")
             logger.info(f"PIPELINE COMPLETED in {total_time:.2f}s")
-            logger.info(f"Cost: ${llm_result['cost']:.6f}")
+            logger.info(f"Cost: ${total_cost:.6f} (LLM: ${llm_result['cost']:.6f}, HyDE: ${hyde_result.get('hyde_cost', 0.0) if hyde_result else 0.0:.6f})")
             logger.info(f"{'='*60}\n")
 
             return result
@@ -328,12 +373,14 @@ class RAGPipeline:
             Statistics dictionary
         """
         collection_stats = self.vector_search.get_collection_stats()
+        hyde_stats = self.hyde_retriever.get_stats()
 
         return {
             "collection": collection_stats,
             "llm_total_cost": self.llm_client.get_total_cost(),
             "model": self.llm_client.model,
             "reranker_model": config.retrieval.reranker_model,
+            "hyde_stats": hyde_stats,  # NEW: HyDE usage statistics
         }
 
 
