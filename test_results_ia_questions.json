@@ -1,0 +1,82 @@
+{
+  "total_preguntas": 60,
+  "exitosas": 60,
+  "con_chunks": 60,
+  "sin_chunks": 0,
+  "errores": 0,
+  "tiempo_total": 1131.050264596939,
+  "costo_total": 0.027261899999999995,
+  "detalles_por_documento": {
+    "CONPES Colombia": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "EU AI Act": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "Facultad IA Caldas": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "IEEE Ética": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "Historia IA": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "Nuria Oliver": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "Ametic IA Generativa": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "IA Sector Público": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "Guía Estudiantes": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    },
+    "UNESCO": {
+      "total": 6,
+      "exitosas": 6,
+      "con_chunks": 6,
+      "sin_chunks": 0,
+      "errores": 0
+    }
+  },
+  "preguntas_fallidas": []
+}

@@ -868,6 +868,8 @@ class HierarchicalChunker:
             "es_anexo": bool(anexo_numero),
             # Document type
             "tipo_documento": doc_type,
+            # Área de conocimiento (v1.3.0 - separación por dominio)
+            "area": metadata.get("area", "general"),
             # GRAPH FIELDS (NEW - FASE 1)
             "nivel_jerarquico": nivel_jerarquico,  # 0=doc, 1=titulo, 2=cap, 3=art, 4=para, 5=anexo
             "parent_id": parent_id,  # UUID del chunk padre

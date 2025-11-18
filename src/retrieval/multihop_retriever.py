@@ -38,6 +38,8 @@ class MultihopRetriever:
         original_query: str,
         sub_queries: List[str],
         search_strategy: str,
+        area: str,
+        documento_ids: Optional[List[str]] = None,
         documento_id: Optional[str] = None,
         top_k_per_query: int = 15,
         max_total_chunks: int = 50,
@@ -49,7 +51,9 @@ class MultihopRetriever:
             original_query: Original user query
             sub_queries: List of sub-queries to execute
             search_strategy: Search strategy name
-            documento_id: Optional document filter
+            area: Knowledge area to search in (REQUIRED)
+            documento_ids: Optional list of document IDs to filter (PHASE 2.5)
+            documento_id: [DEPRECATED] Optional single document filter
             top_k_per_query: Chunks to retrieve per sub-query
             max_total_chunks: Maximum total chunks to return
 
@@ -79,8 +83,10 @@ class MultihopRetriever:
             try:
                 chunks = self.vector_search.search_with_context(
                     query=sub_query,
+                    area=area,
                     top_k=retrieval_config['top_k'],
                     expand_context=retrieval_config['expand_context'],
+                    documento_ids=documento_ids,  # PHASE 2.5
                     documento_id=documento_id,
                     capitulo=enhancement['filters'].get('capitulo'),
                     titulo=enhancement['filters'].get('titulo'),
@@ -198,6 +204,8 @@ class MultihopRetriever:
         self,
         original_query: str,
         sub_queries: List[str],
+        area: str,
+        documento_ids: Optional[List[str]] = None,
         documento_id: Optional[str] = None,
         top_k_per_side: int = 10,
     ) -> Dict:
@@ -209,7 +217,9 @@ class MultihopRetriever:
         Args:
             original_query: Original user query
             sub_queries: Sub-queries (should be 2+ for comparison)
-            documento_id: Optional document filter
+            area: Knowledge area to search in (REQUIRED)
+            documento_ids: Optional list of document IDs to filter (PHASE 2.5)
+            documento_id: [DEPRECATED] Optional single document filter
             top_k_per_side: Chunks to retrieve per comparison side
 
         Returns:
@@ -221,7 +231,7 @@ class MultihopRetriever:
             logger.warning("Comparison query has less than 2 sub-queries. Falling back to standard multihop.")
             return self.retrieve_multihop(
                 original_query, sub_queries, "multihop_comparison",
-                documento_id, top_k_per_query=top_k_per_side
+                area=area, documento_ids=documento_ids, documento_id=documento_id, top_k_per_query=top_k_per_side
             )
 
         # For comparisons, we want balanced results from each side
@@ -232,6 +242,8 @@ class MultihopRetriever:
             original_query=original_query,
             sub_queries=sub_queries,
             search_strategy="multihop_comparison",
+            area=area,
+            documento_ids=documento_ids,  # PHASE 2.5
             documento_id=documento_id,
             top_k_per_query=top_k_per_side,
             max_total_chunks=max_total,
@@ -241,6 +253,8 @@ class MultihopRetriever:
         self,
         original_query: str,
         sub_queries: List[str],
+        area: str,
+        documento_ids: Optional[List[str]] = None,
         documento_id: Optional[str] = None,
     ) -> Dict:
         """
@@ -249,7 +263,9 @@ class MultihopRetriever:
         Args:
             original_query: Original user query
             sub_queries: Sub-queries for condition and consequence
-            documento_id: Optional document filter
+            area: Knowledge area to search in (REQUIRED)
+            documento_ids: Optional list of document IDs to filter (PHASE 2.5)
+            documento_id: [DEPRECATED] Optional single document filter
 
         Returns:
             Retrieval results
@@ -262,6 +278,8 @@ class MultihopRetriever:
             original_query=original_query,
             sub_queries=sub_queries,
             search_strategy="multihop_conditional",
+            area=area,
+            documento_ids=documento_ids,  # PHASE 2.5
             documento_id=documento_id,
             top_k_per_query=15,
             max_total_chunks=40,

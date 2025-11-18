@@ -12,7 +12,8 @@ import warnings
 import streamlit as st
 from loguru import logger
 from src.pipeline import RAGPipeline
-from src.config import config
+from src.config import config, VALID_AREAS, get_area_display_name
+from src.shared_resources import get_shared_pipeline
 
 # Suppress Streamlit ScriptRunContext warning
 warnings.filterwarnings("ignore", message=".*ScriptRunContext.*")
@@ -70,10 +71,43 @@ st.markdown("""
 
 @st.cache_resource
 def load_pipeline():
-    """Load and cache the RAG pipeline."""
+    """
+    Load and cache the RAG pipeline.
+
+    Uses global singleton to avoid multiple Qdrant connections
+    when switching between pages.
+    """
     with st.spinner("Inicializando sistema RAG..."):
-        pipeline = RAGPipeline()
+        pipeline = get_shared_pipeline()
         return pipeline
+
+
+@st.cache_data(ttl=600)  # Cache for 10 minutes
+def get_cached_documents(area: str, _pipeline=None) -> list[dict]:
+    """
+    Get and cache documents for an area.
+
+    PHASE 2.5: Cached to avoid multiple Qdrant connections.
+    Uses pipeline's Qdrant client if available.
+
+    Args:
+        area: Area code
+        _pipeline: Pipeline instance (prefixed with _ to exclude from cache key)
+    """
+    from src.config import get_documents_for_area
+
+    # Try to reuse pipeline's Qdrant client
+    if _pipeline is not None:
+        try:
+            qdrant_client = _pipeline.vector_search.qdrant_client
+            return get_documents_for_area(area, qdrant_client=qdrant_client)
+        except Exception as e:
+            # If pipeline client fails, fall back to creating new connection
+            pass
+
+    # Fallback: create temporary connection
+    # This will only be called once per area (cached)
+    return get_documents_for_area(area)
 
 
 def render_sidebar():
@@ -81,21 +115,65 @@ def render_sidebar():
     with st.sidebar:
         st.markdown("## ⚙️ Configuración")
 
-        # Document filter
-        st.markdown("### Filtros")
-        documento_filter = st.selectbox(
-            "Filtrar por documento",
-            ["Todos", "Acuerdo Único 2025", "Documento Técnico V2"],
-            help="Selecciona un documento específico o busca en todos"
+        # Area selector (NUEVO v1.3.0 - separación por dominio)
+        st.markdown("### 🎯 Área de Consulta")
+
+        # Create dropdown options with display names
+        area_options = {area_code: get_area_display_name(area_code) for area_code in VALID_AREAS.keys()}
+
+        area_display = st.selectbox(
+            "Seleccionar área",
+            options=list(area_options.values()),
+            index=0,  # Default to first option (SGR)
+            help="⚠️ IMPORTANTE: Solo se buscarán documentos del área seleccionada. Esto garantiza que no se mezclen resultados de diferentes dominios."
         )
 
-        # Map selection to documento_id
-        documento_map = {
-            "Todos": None,
-            "Acuerdo Único 2025": "acuerdo_unico_comision_rectora_2025_07_15",
-            "Documento Técnico V2": "documentotecnico_v2"
-        }
-        documento_id = documento_map[documento_filter]
+        # Get area code from display name
+        area = [code for code, name in area_options.items() if name == area_display][0]
+
+        st.info(f"📚 Consultando: **{area_display}**")
+
+        st.markdown("---")
+
+        # PHASE 2.5: Multi-document filter
+        st.markdown("### 📑 Documentos")
+
+        # Get available documents for the selected area (cached)
+        # Only show if pipeline is initialized (avoids Qdrant lock issues)
+        pipeline = st.session_state.get("pipeline")
+        documento_ids = None  # Default value
+
+        if pipeline is None:
+            st.info("⏳ Cargando documentos disponibles...")
+            available_docs = []
+        else:
+            available_docs = get_cached_documents(area, _pipeline=pipeline)
+
+        if available_docs:
+            # Create dict for display name → doc_id mapping
+            docs_dict = {doc["nombre"]: doc["id"] for doc in available_docs}
+
+            selected_doc_names = st.multiselect(
+                "Filtrar por documentos (vacío = todos)",
+                options=list(docs_dict.keys()),
+                default=[],
+                help=f"📚 {len(available_docs)} documentos disponibles. Selecciona uno o varios, o deja vacío para buscar en todos los documentos del área."
+            )
+
+            # Convert selected names to IDs
+            documento_ids = [docs_dict[name] for name in selected_doc_names] if selected_doc_names else None
+
+            # Show selection info
+            if documento_ids:
+                st.success(f"✓ Buscando en {len(documento_ids)} documento(s) seleccionado(s)")
+            else:
+                st.info(f"ℹ️ Buscando en TODOS los {len(available_docs)} documentos del área")
+        elif pipeline is not None:
+            # Pipeline loaded but no documents found
+            st.warning(f"⚠️ No hay documentos disponibles en el área '{area_display}'")
+
+        # DEPRECATED: Keep for backward compatibility (not displayed)
+        documento_id = None
 
         st.markdown("---")
 
@@ -146,6 +224,18 @@ def render_sidebar():
 
             if enable_hyde:
                 st.info("💡 HyDE traduce automáticamente tu query al estilo del documento y activa fallback si los resultados son pobres.")
+
+            st.markdown("---")
+
+            # Response Validation settings (PHASE 3)
+            enable_validation = st.checkbox(
+                "⚡ Validación de Completitud (FASE 3)",
+                value=True,
+                help="🎯 NUEVO: Valida automáticamente si la respuesta está completa y hace retry si detecta información faltante. Mejora precisión +20% en queries complejas. Incrementa costo ~10-20%."
+            )
+
+            if enable_validation:
+                st.info("💡 FASE 3: Sistema valida la respuesta y busca información adicional si detecta gaps. Ideal para queries con múltiples aspectos.")
 
         st.markdown("---")
 
@@ -224,12 +314,15 @@ def render_sidebar():
             st.session_state.show_guide = True
 
         return {
-            "documento_id": documento_id,
+            "area": area,  # v1.3.0 - Área de conocimiento obligatoria
+            "documento_ids": documento_ids,  # PHASE 2.5 - Filtro multi-documento
+            "documento_id": documento_id,  # DEPRECATED - Mantener compatibilidad
             "top_k_retrieval": top_k_retrieval,
             "top_k_rerank": top_k_rerank,
             "expand_context": expand_context,
             "enable_multihop": enable_multihop,
-            "enable_hyde": enable_hyde,  # NEW v1.3.0
+            "enable_hyde": enable_hyde,
+            "enable_validation": enable_validation,  # PHASE 3 - Response validation
         }
 
 
@@ -688,12 +781,15 @@ def main():
                 # Execute pipeline
                 result = pipeline.query(
                     question=query,
-                    documento_id=config_params["documento_id"],
+                    area=config_params["area"],  # v1.3.0 - Filtro por área obligatorio
+                    documento_ids=config_params["documento_ids"],  # PHASE 2.5 - Filtro multi-documento
+                    documento_id=config_params["documento_id"],  # DEPRECATED
                     top_k_retrieval=config_params["top_k_retrieval"],
                     top_k_rerank=config_params["top_k_rerank"],
                     expand_context=config_params["expand_context"],
                     enable_multihop=config_params["enable_multihop"],  # v1.2.0
-                    enable_hyde=config_params["enable_hyde"],  # NEW v1.3.0
+                    enable_hyde=config_params["enable_hyde"],  # v1.3.0
+                    enable_validation=config_params["enable_validation"],  # PHASE 3
                 )
 
                 # Update total cost (including HyDE)

@@ -232,6 +232,9 @@ class DocumentHierarchyProcessor:
             # Tipo
             "tipo_documento": metadata.get("documento_tipo", "generic"),
 
+            # Área de conocimiento (NUEVO - v1.3.0)
+            "area": metadata.get("area", "general"),
+
             # Navegación secuencial
             "chunk_anterior_id": None,
             "chunk_siguiente_id": None,
@@ -1094,6 +1097,9 @@ class DocumentHierarchyProcessor:
 
             # Tipo
             "tipo_documento": doc_type,
+
+            # Área de conocimiento (NUEVO - v1.3.0)
+            "area": metadata.get("area", "general"),
 
             # Navegación
             "chunk_anterior_id": None,

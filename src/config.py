@@ -112,6 +112,131 @@ Config:
 config = Config()
 
 
+# ============================================================================
+# ÁREA DE CONOCIMIENTO - Separación de dominios
+# ============================================================================
+
+# Áreas válidas del sistema
+VALID_AREAS = {
+    "sgr": "Sistema General de Regalías",
+    "inteligencia_artificial": "Inteligencia Artificial",
+    "general": "General"
+}
+
+# Área por defecto
+DEFAULT_AREA = "sgr"
+
+
+def validate_area(area: str) -> str:
+    """
+    Valida que un área sea válida.
+
+    Args:
+        area: Código del área a validar
+
+    Returns:
+        Área validada (normalizada a lowercase)
+
+    Raises:
+        ValueError: Si el área no es válida
+    """
+    area_normalized = area.lower().strip()
+    if area_normalized not in VALID_AREAS:
+        valid_list = ", ".join(VALID_AREAS.keys())
+        raise ValueError(
+            f"Área '{area}' no válida. Áreas válidas: {valid_list}"
+        )
+    return area_normalized
+
+
+def get_area_display_name(area: str) -> str:
+    """
+    Obtiene el nombre completo de un área.
+
+    Args:
+        area: Código del área
+
+    Returns:
+        Nombre completo del área
+    """
+    return VALID_AREAS.get(area.lower(), area)
+
+
+def get_documents_for_area(area: str, qdrant_client=None) -> list[dict]:
+    """
+    Obtiene la lista de documentos disponibles en un área específica.
+
+    PHASE 2.5 IMPROVEMENT: Allows UI to display available documents per area.
+
+    Args:
+        area: Código del área (será validado)
+        qdrant_client: Optional QdrantClient instance (reuse existing connection to avoid locks)
+
+    Returns:
+        Lista de diccionarios con información de documentos:
+        [
+            {
+                "id": "documento_id",
+                "nombre": "Nombre del Documento",
+                "tipo": "legal | technical | generic"
+            },
+            ...
+        ]
+
+    Raises:
+        ValueError: Si el área no es válida
+
+    Example:
+        >>> docs = get_documents_for_area("inteligencia_artificial")
+        >>> print(f"Encontrados {len(docs)} documentos")
+        Encontrados 10 documentos
+    """
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    from collections import defaultdict
+
+    # Validate area
+    area = validate_area(area)
+
+    # Connect to Qdrant (reuse existing client if provided)
+    if qdrant_client is None:
+        qdrant_client = QdrantClient(path=config.qdrant.path)
+
+    try:
+        # Scroll through all chunks in the area
+        results = qdrant_client.scroll(
+            collection_name=config.qdrant.collection_name,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(key="area", match=MatchValue(value=area))
+                ]
+            ),
+            limit=10000,  # Get all points in area
+            with_payload=True,
+        )
+
+        # Deduplicate documents by documento_id
+        docs_dict = {}
+        for point in results[0]:
+            doc_id = point.payload.get("documento_id")
+            if doc_id and doc_id not in docs_dict:
+                docs_dict[doc_id] = {
+                    "id": doc_id,
+                    "nombre": point.payload.get("documento_nombre", doc_id),
+                    "tipo": point.payload.get("tipo_documento", "generic"),
+                }
+
+        # Sort by nombre
+        docs_list = sorted(docs_dict.values(), key=lambda x: x["nombre"])
+
+        return docs_list
+
+    except Exception as e:
+        # If Qdrant is not available or collection doesn't exist
+        print(f"Warning: Could not retrieve documents from Qdrant: {e}")
+        return []
+
+
 # Cost tracking constants
 COSTS = {
     "text-embedding-3-small": {

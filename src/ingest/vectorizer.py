@@ -29,7 +29,12 @@ class Vectorizer:
         Args:
             use_hybrid_search: If True, enable hybrid search with BM25 sparse vectors
         """
-        self.openai_client = openai.OpenAI(api_key=config.openai.api_key)
+        # Initialize OpenAI client with increased timeout
+        self.openai_client = openai.OpenAI(
+            api_key=config.openai.api_key,
+            timeout=60.0,  # Increase timeout to 60 seconds
+            max_retries=3  # Enable retries
+        )
         self.embedding_model = config.openai.embedding_model
         self.embedding_dim = config.openai.embedding_dimensions
         self.tokenizer = tiktoken.get_encoding("cl100k_base")  # For token counting
@@ -242,6 +247,8 @@ class Vectorizer:
                 "es_anexo": chunk.get("es_anexo", False),
                 # Document type
                 "tipo_documento": chunk.get("tipo_documento"),
+                # Área de conocimiento (v1.3.0 - separación por dominio)
+                "area": chunk.get("area", "general"),
                 # GRAPH FIELDS (FASE 1) - NEW
                 "nivel_jerarquico": chunk.get("nivel_jerarquico"),  # 0=doc, 1=titulo, 2=cap, 3=art, 4=para, 5=anexo
                 "parent_id": chunk.get("parent_id"),  # UUID del chunk padre
@@ -259,12 +266,16 @@ class Vectorizer:
                 "tipo_contenido": chunk["tipo_contenido"],
             }
 
+            # Use chunk_id (UUID) as unique ID instead of sequential index
+            # This prevents overwrites when ingesting multiple areas
+            point_id = chunk["chunk_id"]
+
             # Create point with dense vector (and sparse if hybrid mode)
             if sparse_vector:
                 # Hybrid mode: vector is a dict with named vectors
                 from qdrant_client.models import SparseVector
                 point = PointStruct(
-                    id=i,
+                    id=point_id,
                     vector={
                         "": embedding,  # Default dense vector (unnamed)
                         "text": SparseVector(**sparse_vector)  # Named sparse vector
@@ -273,7 +284,7 @@ class Vectorizer:
                 )
             else:
                 # Dense-only mode
-                point = PointStruct(id=i, vector=embedding, payload=payload)
+                point = PointStruct(id=point_id, vector=embedding, payload=payload)
 
             points.append(point)
 

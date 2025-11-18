@@ -1,0 +1,210 @@
+{
+  "total_preguntas": 15,
+  "con_respuesta": 4,
+  "sin_respuesta": 11,
+  "errores": 0,
+  "tiempo_total": 290.7982716560364,
+  "costo_total": 0.0056097000000000004,
+  "detalles": [
+    {
+      "pregunta": "¿Cuál es el objetivo número 1 de la política nacional de inteligencia artificial en Colombia?",
+      "documento": "CONPES Colombia",
+      "respuesta": "El objetivo número 1 de la política nacional de inteligencia artificial en Colombia es fortalecer los mecanismos de gobernanza y la aplicación de principios éticos relacionados con los sistemas de IA para asegurar un desarrollo y uso responsable de esta tecnología en beneficio del país [OE1, Conpes Colombia Política Nacional De Inteligencia Artificial]. \n\nEste objetivo busca garantizar que el desarrollo e implementación de la inteligencia artificial se realicen de manera alineada con los valores sociales y los derechos humanos, promoviendo así un uso ético y responsable de la tecnología en el contexto colombiano [Conpes Colombia Política Nacional De Inteligencia Artificial].\n\n---\n\n## Referencias\n\n1. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: Procedimiento\n\n2. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: General\n\n3. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: General\n\n4. **Art. 5, Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Artículo: 5\n   - Tipo: General\n\n5. **Art. 5, Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Artículo: 5\n   - Tipo: Procedimiento\n",
+      "num_chunks": 5,
+      "costo": 0.0003828,
+      "tiempo": 17.9320809841156,
+      "tiene_respuesta": true,
+      "error": null
+    },
+    {
+      "pregunta": "¿Cuál es el objetivo número 4 de la política nacional de inteligencia artificial en Colombia?",
+      "documento": "CONPES Colombia",
+      "respuesta": "El objetivo número 4 de la Política Nacional de Inteligencia Artificial en Colombia es \"Desarrollar las capacidades, el talento digital, y la apropiación social del conocimiento relacionado con IA para generar oportunidades de desarrollo personal, empleabilidad, equidad y mayor productividad en Colombia\" [Art. 5.2, Conpes Colombia Política Nacional De Inteligencia Artificial]. \n\nEste objetivo busca no solo fomentar el desarrollo de habilidades en inteligencia artificial, sino también asegurar que estas capacidades se traduzcan en beneficios sociales y económicos para la población, promoviendo así una mayor inclusión y equidad en el acceso a oportunidades laborales y de desarrollo personal.\n\n---\n\n## Referencias\n\n1. **Art. 5, Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Artículo: 5\n   - Tipo: General\n\n2. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: General\n\n3. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: General\n\n4. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: General\n\n5. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: General\n",
+      "num_chunks": 5,
+      "costo": 0.00040110000000000005,
+      "tiempo": 12.781085968017578,
+      "tiene_respuesta": true,
+      "error": null
+    },
+    {
+      "pregunta": "¿Cuál es el costo estimado y de dónde proviene la financiación de las políticas propuestas?",
+      "documento": "CONPES Colombia",
+      "respuesta": "No encontré información sobre el costo estimado de las políticas propuestas en el contexto proporcionado. \n\nSin embargo, en cuanto a las fuentes de financiación para las políticas propuestas, se menciona que los gobiernos pueden actuar como financistas o inversionistas directos, asignando fondos para apoyar el desarrollo y la adopción de nuevas tecnologías, incluyendo proyectos dentro del sector público y de I+D del sector privado [La Inteligencia Artificial Y Su Uso En El Sector PúBlico]. Además, se hace referencia al Fondo de Modernización Tecnológica del Gobierno de los Estados Unidos (TMF), que permite a las dependencias gubernamentales presentar propuestas de financiamiento para proyectos de modernización tecnológica, evaluando su impacto, viabilidad y generación de oportunidades [La Inteligencia Artificial Y Su Uso En El Sector PúBlico]. \n\nPor lo tanto, aunque no se especifica un costo estimado, las fuentes de financiación incluyen la asignación de fondos gubernamentales y el TMF.\n\n---\n\n## Referencias\n\n1. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n2. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n3. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: General\n\n4. **Art. 5, La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Artículo: 5\n   - Tipo: General\n\n5. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Definicion\n",
+      "num_chunks": 5,
+      "costo": 0.00041114999999999994,
+      "tiempo": 48.93184685707092,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Cuáles son los niveles de riesgo según el AI Act?",
+      "documento": "EU AI Act",
+      "respuesta": "No encontré información sobre los niveles de riesgo según el AI Act en el contexto proporcionado.\n\n---\n\n## Referencias\n\n1. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n2. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Definicion\n\n3. **Art. 5, La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Artículo: 5\n   - Tipo: Definicion\n\n4. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n5. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: General\n",
+      "num_chunks": 5,
+      "costo": 0.00032625,
+      "tiempo": 19.17719602584839,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Qué sanciones económicas pueden imponerse por incumplimiento del AI Act?",
+      "documento": "EU AI Act",
+      "respuesta": "No encontré información sobre las sanciones económicas establecidas en el AI Act en el contexto proporcionado. Además, no se mencionan las condiciones que deben cumplirse para que se impongan estas sanciones.\n\n---\n\n## Referencias\n\n1. **Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes**\n   - Documento: Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes\n   - Tipo: Procedimiento\n\n2. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n3. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n4. **European Union Artificial Intelligence Act A Guide**\n   - Documento: European Union Artificial Intelligence Act A Guide\n   - Tipo: Definicion\n\n5. **Art. 5, La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Artículo: 5\n   - Tipo: Definicion\n",
+      "num_chunks": 5,
+      "costo": 0.00031995,
+      "tiempo": 18.168070793151855,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Cuáles son algunas de las prácticas de IA prohibidas?",
+      "documento": "EU AI Act",
+      "respuesta": "No encontré información sobre prácticas de IA prohibidas en el contexto proporcionado.\n\n---\n\n## Referencias\n\n1. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n2. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: Procedimiento\n\n3. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: General\n\n4. **La Guia Sobre Inteligencia Artificial Para Estudiantes 2025**\n   - Documento: La Guia Sobre Inteligencia Artificial Para Estudiantes 2025\n   - Tipo: General\n\n5. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: Procedimiento\n",
+      "num_chunks": 5,
+      "costo": 0.00033884999999999997,
+      "tiempo": 18.383998155593872,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Qué obligaciones de transparencia establece el AI Act para los sistemas de IA?",
+      "documento": "EU AI Act",
+      "respuesta": "No encontré información sobre las obligaciones de transparencia que establece el AI Act para los sistemas de IA en el contexto proporcionado.\n\n---\n\n## Referencias\n\n1. **Art. 5, La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Artículo: 5\n   - Tipo: Definicion\n\n2. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n3. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Definicion\n\n4. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n5. **Art. 5, La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Artículo: 5\n   - Tipo: Procedimiento\n",
+      "num_chunks": 5,
+      "costo": 0.0003318,
+      "tiempo": 9.2736337184906,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Qué sucede si un estudiante beneficiario de algún apoyo socioeconómico de la universidad quiere postularse?",
+      "documento": "Facultad IA Caldas",
+      "respuesta": "No encontré información sobre los requisitos, procesos o restricciones específicas para que un estudiante beneficiario de algún apoyo socioeconómico de la universidad postule.\n\n---\n\n## Referencias\n\n1. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n2. **Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver**\n   - Documento: Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver\n   - Tipo: Procedimiento\n\n3. **Facultad De Inteligencia Artificial De La Universidad De Caldas**\n   - Documento: Facultad De Inteligencia Artificial De La Universidad De Caldas\n   - Tipo: Procedimiento\n\n4. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n\n5. **Facultad De Inteligencia Artificial De La Universidad De Caldas**\n   - Documento: Facultad De Inteligencia Artificial De La Universidad De Caldas\n   - Tipo: Procedimiento\n",
+      "num_chunks": 5,
+      "costo": 0.00032505,
+      "tiempo": 17.30433416366577,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Qué indica el estándar sobre la competencia de los operadores y creadores de sistemas inteligentes?",
+      "documento": "IEEE Ética",
+      "respuesta": "No encontré información sobre la competencia de los operadores y creadores de sistemas inteligentes en el contexto proporcionado.\n\n---\n\n## Referencias\n\n1. **Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes**\n   - Documento: Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes\n   - Tipo: Procedimiento\n\n2. **Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes**\n   - Documento: Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes\n   - Tipo: Procedimiento\n\n3. **Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes**\n   - Documento: Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes\n   - Tipo: Definicion\n\n4. **Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes**\n   - Documento: Ieee   EstáNdar Global De ÉTica En Sistemas AutóNomos E Inteligentes\n   - Tipo: Procedimiento\n\n5. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Procedimiento\n",
+      "num_chunks": 5,
+      "costo": 0.00034845,
+      "tiempo": 9.470447778701782,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Qué aplicaciones actuales de la IA se mencionan en el documento?",
+      "documento": "Historia IA",
+      "respuesta": "No encontré información sobre aplicaciones específicas actuales de la IA en el documento proporcionado.\n\n---\n\n## Referencias\n\n1. **Art. 5, La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Artículo: 5\n   - Tipo: General\n\n2. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: General\n\n3. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Definicion\n\n4. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Definicion\n\n5. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: General\n",
+      "num_chunks": 5,
+      "costo": 0.00033015,
+      "tiempo": 9.02725100517273,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Cuándo resurgieron las redes neuronales en la investigación de IA y por qué?",
+      "documento": "Historia IA",
+      "respuesta": "Las redes neuronales resurgieron en la investigación de inteligencia artificial (IA) a partir de 2014, cuando se produjo un avance fundamental con la introducción de las Redes Generativas Antagónicas (GAN) por Ian Goodfellow. Este modelo combinó dos redes neuronales que compiten entre sí, lo que impulsó a la red generadora a mejorar su capacidad para crear datos falsos que son difíciles de distinguir de los reales [IntroduccióN A La Inteligencia Artificial Generativa Ametic].\n\nLos factores que contribuyeron a este resurgimiento incluyen:\n\n1. **Avances en la arquitectura de redes neuronales**: La introducción de las GAN permitió superar limitaciones de modelos anteriores, lo que generó un interés renovado en las redes neuronales [IntroduccióN A La Inteligencia Artificial Generativa Ametic].\n   \n2. **Desarrollo de nuevas arquitecturas**: En 2017, se propuso la arquitectura Transformer, que también ayudó a mejorar el rendimiento de las redes neuronales en diversas tareas, lo que a su vez fomentó su uso en aplicaciones más complejas [IntroduccióN A La Inteligencia Artificial Generativa Ametic].\n\n3. **Capacidad de procesamiento y grandes volúmenes de datos**: Los algoritmos de aprendizaje profundo demostraron ser más efectivos en el manejo de grandes cantidades de datos en comparación con técnicas tradicionales, lo que facilitó su aplicación en problemas complejos [La Inteligencia Artificial Y Su Uso En El Sector PúBlico].\n\nEn resumen, el resurgimiento de las redes neuronales en la investigación de IA se dio a partir de 2014, impulsado por innovaciones como las GAN y la arquitectura Transformer, así como por la capacidad de estos modelos para manejar grandes volúmenes de datos de manera efectiva.\n\n---\n\n## Referencias\n\n1. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: General\n\n2. **IntroduccióN A La Inteligencia Artificial Generativa Ametic**\n   - Documento: IntroduccióN A La Inteligencia Artificial Generativa Ametic\n   - Tipo: General\n\n3. **Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver**\n   - Documento: Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver\n   - Tipo: Definicion\n\n4. **Inteligencia Artificial   Historia, EvolucióN Y Aplicaciones De La Ia**\n   - Documento: Inteligencia Artificial   Historia, EvolucióN Y Aplicaciones De La Ia\n   - Tipo: General\n\n5. **Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver**\n   - Documento: Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver\n   - Tipo: Procedimiento\n",
+      "num_chunks": 5,
+      "costo": 0.0005055,
+      "tiempo": 22.97377634048462,
+      "tiene_respuesta": true,
+      "error": null
+    },
+    {
+      "pregunta": "¿Cuáles son algunos ejemplos prácticos de aplicaciones de IA generativa?",
+      "documento": "Ametic IA Generativa",
+      "respuesta": "No encontré información sobre ejemplos prácticos de aplicaciones de IA generativa en el contexto proporcionado.\n\n---\n\n## Referencias\n\n1. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: General\n\n2. **La Guia Sobre Inteligencia Artificial Para Estudiantes 2025**\n   - Documento: La Guia Sobre Inteligencia Artificial Para Estudiantes 2025\n   - Tipo: Procedimiento\n\n3. **IntroduccióN A La Inteligencia Artificial Generativa Ametic**\n   - Documento: IntroduccióN A La Inteligencia Artificial Generativa Ametic\n   - Tipo: Definicion\n\n4. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: Procedimiento\n\n5. **Art. 5, Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Artículo: 5\n   - Tipo: Procedimiento\n",
+      "num_chunks": 5,
+      "costo": 0.00033164999999999996,
+      "tiempo": 18.092429161071777,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Qué retos principales enfrenta la IA generativa según el documento?",
+      "documento": "Ametic IA Generativa",
+      "respuesta": "La IA generativa enfrenta varios retos principales, según el contexto proporcionado:\n\n1. **Alucinaciones**: Este fenómeno ocurre cuando la IA genera información que no está respaldada por los datos de entrenamiento o que carece de base en la realidad. Las alucinaciones son problemáticas en aplicaciones donde la precisión es crucial [IntroduccióN A La Inteligencia Artificial Generativa Ametic].\n\n2. **Ética y sesgos**: Los modelos de IA generativa pueden heredar sesgos presentes en los datos de entrenamiento, lo que puede resultar en contenido parcial o discriminatorio. Esto incluye la reproducción de estereotipos negativos relacionados con género, raza o clase [IntroduccióN A La Inteligencia Artificial Generativa Ametic].\n\n3. **Propiedad intelectual**: Surge la incertidumbre sobre los derechos de propiedad intelectual del contenido generado por la IA. Por ejemplo, si una IA crea una obra, no está claro quién es el propietario de esa creación, especialmente si se entrenó con datos sujetos a derechos de autor sin el consentimiento de los autores originales [IntroduccióN A La Inteligencia Artificial Generativa Ametic].\n\n4. **Consumo de recursos**: Los modelos de IA generativa requieren grandes cantidades de datos, capacidad de cálculo y energía para su entrenamiento, lo que genera un alto costo ambiental y económico. Por ejemplo, se estima que entrenar modelos como GPT-3 generó 500 toneladas de CO2 [IntroduccióN A La Inteligencia Artificial Generativa Ametic].\n\nEstos retos resaltan la complejidad y las implicaciones éticas, legales y ambientales del uso de la IA generativa en diversas aplicaciones.\n\n---\n\n## Referencias\n\n1. **IntroduccióN A La Inteligencia Artificial Generativa Ametic**\n   - Documento: IntroduccióN A La Inteligencia Artificial Generativa Ametic\n   - Tipo: Definicion\n\n2. **Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Tipo: Procedimiento\n\n3. **Art. 5, Conpes Colombia   PolíTica Nacional De Inteligencia Artificial**\n   - Documento: Conpes Colombia   PolíTica Nacional De Inteligencia Artificial\n   - Artículo: 5\n   - Tipo: Procedimiento\n\n4. **IntroduccióN A La Inteligencia Artificial Generativa Ametic**\n   - Documento: IntroduccióN A La Inteligencia Artificial Generativa Ametic\n   - Tipo: Procedimiento\n\n5. **IntroduccióN A La Inteligencia Artificial Generativa Ametic**\n   - Documento: IntroduccióN A La Inteligencia Artificial Generativa Ametic\n   - Tipo: Definicion\n",
+      "num_chunks": 5,
+      "costo": 0.00054885,
+      "tiempo": 17.256043672561646,
+      "tiene_respuesta": true,
+      "error": null
+    },
+    {
+      "pregunta": "¿Cuáles son los principales cambios positivos y negativos que los líderes académicos observan en la educación superior debido a la IA?",
+      "documento": "Guía Estudiantes",
+      "respuesta": "No encontré información sobre los cambios positivos y negativos que los líderes académicos observan en la educación superior debido a la IA en el contexto proporcionado.\n\n---\n\n## Referencias\n\n1. **Unesco – La Inteligencia Artificial ¿Necesitamos Una Nueva EducacióN **\n   - Documento: Unesco – La Inteligencia Artificial ¿Necesitamos Una Nueva EducacióN \n   - Tipo: Procedimiento\n\n2. **Unesco – La Inteligencia Artificial ¿Necesitamos Una Nueva EducacióN **\n   - Documento: Unesco – La Inteligencia Artificial ¿Necesitamos Una Nueva EducacióN \n   - Tipo: General\n\n3. **La Guia Sobre Inteligencia Artificial Para Estudiantes 2025**\n   - Documento: La Guia Sobre Inteligencia Artificial Para Estudiantes 2025\n   - Tipo: General\n\n4. **La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Tipo: Definicion\n\n5. **Art. 5, La Inteligencia Artificial Y Su Uso En El Sector PúBlico**\n   - Documento: La Inteligencia Artificial Y Su Uso En El Sector PúBlico\n   - Artículo: 5\n   - Tipo: General\n",
+      "num_chunks": 5,
+      "costo": 0.0003168,
+      "tiempo": 29.85169792175293,
+      "tiene_respuesta": false,
+      "error": null
+    },
+    {
+      "pregunta": "¿Qué recomienda la UNESCO para avanzar en un desarrollo ético de la inteligencia artificial?",
+      "documento": "UNESCO",
+      "respuesta": "No encontré información sobre las recomendaciones específicas de la UNESCO para avanzar en un desarrollo ético de la inteligencia artificial en el contexto proporcionado. Sin embargo, el contexto menciona la importancia de desarrollar una inteligencia artificial que respete las leyes y principios éticos de la sociedad, así como la necesidad de abordar la justicia algorítmica y la no discriminación en el desarrollo de sistemas de decisión automáticos [55]. \n\nPara un desarrollo ético de la inteligencia artificial, se destacan los siguientes principios:\n\n1. **Justicia Algorítmica**: Es fundamental que las decisiones tomadas por sistemas de inteligencia artificial sean justas y no discriminatorias. Esto implica que se deben evitar sesgos en los datos utilizados para entrenar los algoritmos, así como en la aplicación de los mismos [55].\n\n2. **Colaboración Interdisciplinaria**: Se enfatiza la necesidad de que expertos de diversas disciplinas, como el derecho, la economía, la ética, la informática, la filosofía y las ciencias políticas, trabajen juntos para crear y validar métricas de justicia algorítmica [55].\n\n3. **Investigación Empírica y Teórica**: Es urgente realizar investigaciones que evalúen y validen diferentes métricas de justicia algorítmica en el mundo real, así como proponer un marco teórico que respalde estas métricas [55].\n\nEn resumen, aunque no se encontraron recomendaciones directas de la UNESCO, el contexto sugiere que un desarrollo ético de la inteligencia artificial debe centrarse en la justicia, la colaboración interdisciplinaria y la investigación tanto empírica como teórica.\n\n---\n\n## Referencias\n\n1. **Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver**\n   - Documento: Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver\n   - Tipo: Definicion\n\n2. **Unesco – La Inteligencia Artificial ¿Necesitamos Una Nueva EducacióN **\n   - Documento: Unesco – La Inteligencia Artificial ¿Necesitamos Una Nueva EducacióN \n   - Tipo: General\n\n3. **Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver**\n   - Documento: Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver\n   - Tipo: Procedimiento\n\n4. **Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver**\n   - Documento: Inteligencia Artificial, Naturalmente Un Manual De Convivencia Entre Humanos Y MáQuinas Para Que La TecnologíA Nos Beneficie A Todos Nuriaoliver\n   - Tipo: Procedimiento\n\n5. **Unesco – La Inteligencia Artificial ¿Necesitamos Una Nueva EducacióN **\n   - Documento: Unesco – La Inteligencia Artificial ¿Necesitamos Una Nueva EducacióN \n   - Tipo: General\n",
+      "num_chunks": 5,
+      "costo": 0.00039135,
+      "tiempo": 22.174379110336304,
+      "tiene_respuesta": false,
+      "error": null
+    }
+  ],
+  "por_documento": {
+    "CONPES Colombia": {
+      "total": 3,
+      "con_respuesta": 2,
+      "sin_respuesta": 1,
+      "errores": 0
+    },
+    "EU AI Act": {
+      "total": 4,
+      "con_respuesta": 0,
+      "sin_respuesta": 4,
+      "errores": 0
+    },
+    "Facultad IA Caldas": {
+      "total": 1,
+      "con_respuesta": 0,
+      "sin_respuesta": 1,
+      "errores": 0
+    },
+    "IEEE Ética": {
+      "total": 1,
+      "con_respuesta": 0,
+      "sin_respuesta": 1,
+      "errores": 0
+    },
+    "Historia IA": {
+      "total": 2,
+      "con_respuesta": 1,
+      "sin_respuesta": 1,
+      "errores": 0
+    },
+    "Ametic IA Generativa": {
+      "total": 2,
+      "con_respuesta": 1,
+      "sin_respuesta": 1,
+      "errores": 0
+    },
+    "Guía Estudiantes": {
+      "total": 1,
+      "con_respuesta": 0,
+      "sin_respuesta": 1,
+      "errores": 0
+    },
+    "UNESCO": {
+      "total": 1,
+      "con_respuesta": 0,
+      "sin_respuesta": 1,
+      "errores": 0
+    }
+  }
+}

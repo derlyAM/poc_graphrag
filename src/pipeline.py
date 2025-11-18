@@ -12,9 +12,10 @@ from src.retrieval.query_enhancer import QueryEnhancer
 from src.retrieval.query_decomposer import QueryDecomposer
 from src.retrieval.multihop_retriever import MultihopRetriever
 from src.retrieval.hyde_retriever import HyDERetriever
+from src.retrieval.response_validator import ResponseValidator
 from src.generation.llm_client import LLMClient
 from src.generation.citation_manager import CitationManager
-from src.config import config
+from src.config import config, validate_area, get_area_display_name
 
 
 class RAGPipeline:
@@ -35,37 +36,49 @@ class RAGPipeline:
         self.hyde_retriever = HyDERetriever()
         self.llm_client = LLMClient()
         self.citation_manager = CitationManager()
+        self.response_validator = ResponseValidator()
 
-        logger.info("Pipeline initialized successfully")
+        logger.info("Pipeline initialized successfully (with PHASE 3 post-processing)")
 
     def query(
         self,
         question: str,
+        area: str,
+        documento_ids: Optional[List[str]] = None,
         documento_id: Optional[str] = None,
         top_k_retrieval: Optional[int] = None,
         top_k_rerank: Optional[int] = None,
         expand_context: bool = True,
         enable_multihop: bool = True,
         enable_hyde: bool = True,
+        enable_validation: bool = True,
     ) -> Dict:
         """
         Process a query through the complete RAG pipeline.
 
         Args:
             question: User question
-            documento_id: Optional filter by document
+            area: Knowledge area to search in (REQUIRED) - 'sgr', 'inteligencia_artificial', 'general'
+            documento_ids: Optional list of document IDs to filter (None = all documents in area)
+            documento_id: [DEPRECATED] Optional filter by single document
             top_k_retrieval: Number of chunks to retrieve (default from config)
             top_k_rerank: Number of chunks after re-ranking (default from config)
             expand_context: Whether to expand context with adjacent chunks
             enable_multihop: Whether to enable multihop retrieval for complex queries
             enable_hyde: Whether to enable HyDE (Hypothetical Document Embeddings)
+            enable_validation: Whether to enable response validation and auto-retry (PHASE 3)
 
         Returns:
             Complete results dictionary
         """
         start_time = time.time()
 
+        # Validate area (raises ValueError if invalid)
+        area = validate_area(area)
+        area_display = get_area_display_name(area)
+
         logger.info(f"\n{'='*60}")
+        logger.info(f"ÁREA: {area_display} ({area})")
         logger.info(f"QUERY: {question}")
         logger.info(f"{'='*60}")
 
@@ -96,8 +109,12 @@ class RAGPipeline:
                 logger.info(f"Detected filters: {enhancement['filters']}")
 
             # Get optimized retrieval config
+            # PHASE 2.5: Pass documento_ids and area for adaptive top-k
             retrieval_config = self.query_enhancer.get_retrieval_config(
-                enhancement, default_top_k=top_k_retrieval
+                enhancement,
+                default_top_k=top_k_retrieval,
+                documento_ids=documento_ids,
+                area=area
             )
 
             # Use enhanced query for semantic search (if hybrid/semantic)
@@ -109,7 +126,17 @@ class RAGPipeline:
             multihop_stats = None
             hyde_result = None  # Initialize hyde_result for all paths
 
-            if enable_multihop and decomposition and decomposition['requires_multihop']:
+            # EXCEPTION: Numerical/financing queries should use HyDE instead of multihop
+            # HyDE Mejorado with numerical templates is more effective for these queries
+            numerical_keywords = ['cuánto', 'cuanto', 'costo', 'monto', 'valor', 'precio',
+                                 'plazo', 'presupuesto', 'financiación', 'financiacion',
+                                 'inversión', 'inversion', 'recurso']
+            is_numerical_query = any(kw in question.lower() for kw in numerical_keywords)
+
+            if is_numerical_query and decomposition and decomposition['requires_multihop']:
+                logger.info("[OVERRIDE] Numerical query detected - using HyDE instead of multihop for better precision")
+
+            if enable_multihop and decomposition and decomposition['requires_multihop'] and not is_numerical_query:
                 # MULTIHOP RETRIEVAL
                 logger.info(f"\n[STEP 1/7] Multihop Retrieval (strategy: {decomposition['search_strategy']})")
                 logger.info(f"Executing {len(decomposition['sub_queries'])} sub-queries")
@@ -119,6 +146,8 @@ class RAGPipeline:
                     retrieval_result = self.multihop_retriever.retrieve_comparison(
                         original_query=question,
                         sub_queries=decomposition['sub_queries'],
+                        area=area,
+                        documento_ids=documento_ids,
                         documento_id=documento_id,
                         top_k_per_side=15,
                     )
@@ -126,6 +155,8 @@ class RAGPipeline:
                     retrieval_result = self.multihop_retriever.retrieve_conditional(
                         original_query=question,
                         sub_queries=decomposition['sub_queries'],
+                        area=area,
+                        documento_ids=documento_ids,
                         documento_id=documento_id,
                     )
                 else:
@@ -134,6 +165,8 @@ class RAGPipeline:
                         original_query=question,
                         sub_queries=decomposition['sub_queries'],
                         search_strategy=decomposition['search_strategy'],
+                        area=area,
+                        documento_ids=documento_ids,
                         documento_id=documento_id,
                         top_k_per_query=15,
                         max_total_chunks=50,
@@ -155,8 +188,10 @@ class RAGPipeline:
                     hyde_result = self.hyde_retriever.retrieve(
                         vector_search=self.vector_search,
                         question=question,
+                        area=area,
                         enhancement=enhancement,
                         decomposition=decomposition,
+                        documento_ids=documento_ids,
                         documento_id=documento_id,
                         top_k=retrieval_config['top_k'],
                         enable_fallback=True,
@@ -174,8 +209,11 @@ class RAGPipeline:
 
                     chunks = self.vector_search.search_with_context(
                         query=search_query,
+                        area=area,
                         top_k=retrieval_config['top_k'],
                         expand_context=retrieval_config['expand_context'],
+                        context_window=retrieval_config.get('context_window', 1),  # PHASE 2
+                        documento_ids=documento_ids,
                         documento_id=documento_id,
                         capitulo=enhancement['filters'].get('capitulo'),
                         titulo=enhancement['filters'].get('titulo'),
@@ -243,6 +281,105 @@ class RAGPipeline:
                 llm_result["answer"], reranked_chunks, add_references=True
             )
 
+            # PHASE 3: STEP 6 - Response Validation and Auto-Retry
+            validation_metadata = {}
+            retry_used = False
+            validation_cost = 0.0
+
+            if enable_validation:
+                logger.info("\n[STEP 6/8] PHASE 3: Validating Response Completeness")
+
+                # Validate initial response
+                validation_result = self.response_validator.validate_completeness(
+                    question=question,
+                    answer=enhanced_answer,
+                    threshold=0.7  # Configurable threshold
+                )
+
+                validation_metadata = {
+                    "is_complete": validation_result["is_complete"],
+                    "completeness_score": validation_result["completeness_score"],
+                    "missing_aspects": validation_result["missing_aspects"],
+                    "confidence": validation_result["confidence"]
+                }
+                validation_cost += validation_result.get("validation_cost", 0.0)
+
+                logger.info(
+                    f"Completeness: {validation_result['completeness_score']:.2f} "
+                    f"({'Complete' if validation_result['is_complete'] else 'Incomplete'})"
+                )
+
+                # If incomplete, attempt retry with additional retrieval
+                if not validation_result["is_complete"] and validation_result["missing_aspects"]:
+                    logger.warning(
+                        f"Response incomplete. Missing {len(validation_result['missing_aspects'])} aspects. "
+                        f"Attempting auto-retry..."
+                    )
+
+                    retry_used = True
+
+                    # Generate retry queries
+                    retry_queries = self.response_validator.generate_retry_queries(
+                        original_question=question,
+                        missing_aspects=validation_result["missing_aspects"],
+                        max_retries=2  # Limit retries to avoid excessive cost
+                    )
+
+                    logger.info(f"Generated {len(retry_queries)} retry queries")
+
+                    # Retrieve additional chunks for missing information
+                    retry_chunks = []
+                    for retry_query in retry_queries:
+                        logger.debug(f"Retry query: {retry_query}")
+
+                        try:
+                            retry_results = self.vector_search.search_with_context(
+                                query=retry_query,
+                                area=area,
+                                top_k=5,  # Small number for targeted retrieval
+                                expand_context=True,
+                                documento_ids=documento_ids,
+                                documento_id=documento_id,
+                            )
+                            retry_chunks.extend(retry_results)
+                        except Exception as e:
+                            logger.error(f"Retry query failed: {e}")
+
+                    # Deduplicate retry chunks (by chunk_id)
+                    seen_ids = {chunk["chunk_id"] for chunk in reranked_chunks}
+                    unique_retry_chunks = [
+                        chunk for chunk in retry_chunks
+                        if chunk["chunk_id"] not in seen_ids
+                    ]
+
+                    logger.info(f"Retrieved {len(unique_retry_chunks)} new chunks from retry")
+
+                    if unique_retry_chunks:
+                        # Enhance response with additional information
+                        enhancement_result = self.response_validator.enhance_incomplete_response(
+                            original_question=question,
+                            original_answer=enhanced_answer,
+                            missing_aspects=validation_result["missing_aspects"],
+                            retry_chunks=unique_retry_chunks,
+                            area=area
+                        )
+
+                        # Update enhanced answer
+                        enhanced_answer = enhancement_result["enhanced_answer"]
+                        validation_cost += enhancement_result.get("enhancement_cost", 0.0)
+
+                        logger.info(
+                            f"Response enhanced with {enhancement_result['chunks_added']} additional chunks"
+                        )
+
+                        validation_metadata["retry_used"] = True
+                        validation_metadata["retry_chunks_added"] = len(unique_retry_chunks)
+                    else:
+                        logger.warning("No new chunks retrieved from retry. Using original response.")
+                        validation_metadata["retry_used"] = False
+            else:
+                logger.info("\n[STEP 6/8] Response Validation: Skipped (disabled)")
+
             # Build complete result
             total_time = time.time() - start_time
 
@@ -259,17 +396,22 @@ class RAGPipeline:
                 }
                 total_cost += hyde_result.get("hyde_cost", 0.0)
 
+            # Add validation cost (PHASE 3)
+            total_cost += validation_cost
+
             result = {
                 # Answer
                 "answer": enhanced_answer,
                 "original_answer": llm_result["answer"],
                 # Query
                 "query": question,
-                "documento_filter": documento_id,
+                "documento_filter": documento_id,  # DEPRECATED
+                "documento_ids_filter": documento_ids,  # PHASE 2.5: New filter
                 "query_enhancement": enhancement,
                 "query_decomposition": decomposition,  # NEW: include decomposition info
                 "multihop_used": multihop_used,  # NEW: flag if multihop was used
                 "hyde_metadata": hyde_metadata,  # NEW: HyDE information
+                "validation_metadata": validation_metadata,  # PHASE 3: Response validation
                 # Sources
                 "sources": reranked_chunks,
                 "num_sources": len(reranked_chunks),
@@ -290,7 +432,8 @@ class RAGPipeline:
                     "output_tokens": llm_result["output_tokens"],
                     "llm_cost": llm_result["cost"],
                     "hyde_cost": hyde_result.get("hyde_cost", 0.0) if hyde_result else 0.0,
-                    "total_cost": total_cost,  # NEW: total cost including HyDE
+                    "validation_cost": validation_cost,  # PHASE 3: Validation cost
+                    "total_cost": total_cost,  # NEW: total cost including HyDE + validation
                     "query_type": enhancement["query_type"],
                     "retrieval_strategy": enhancement["retrieval_strategy"],
                     "multihop_enabled": enable_multihop,  # NEW
@@ -298,6 +441,8 @@ class RAGPipeline:
                     "multihop_stats": multihop_stats,  # NEW: multihop statistics
                     "hyde_enabled": enable_hyde,  # NEW
                     "hyde_used": hyde_metadata.get("hyde_used", False),  # NEW
+                    "validation_enabled": enable_validation,  # PHASE 3
+                    "validation_retry_used": retry_used,  # PHASE 3
                 },
                 # Success
                 "success": True,

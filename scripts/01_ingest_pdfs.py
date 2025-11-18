@@ -1,15 +1,18 @@
 """
 PDF Ingestion Script.
 Orchestrates the complete pipeline: extraction → chunking → vectorization.
+
+NEW v1.3.0: Supports --area parameter for domain separation
 """
 import sys
 from pathlib import Path
+import argparse
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
-from src.config import config
+from src.config import config, validate_area, VALID_AREAS, get_area_display_name
 from src.ingest.pdf_extractor import extract_all_pdfs
 from src.ingest.chunker import chunk_documents
 from src.ingest.vectorizer import vectorize_chunks
@@ -35,10 +38,40 @@ def setup_logging():
 
 def main():
     """Main ingestion pipeline."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Ingestar PDFs en el sistema RAG con separación por área"
+    )
+    parser.add_argument(
+        "--area",
+        type=str,
+        required=True,
+        choices=list(VALID_AREAS.keys()),
+        help=f"Área de conocimiento para los documentos. Opciones: {', '.join(VALID_AREAS.keys())}"
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help="Directorio de datos (opcional, sobrescribe config)"
+    )
+    parser.add_argument(
+        "--recreate",
+        action="store_true",
+        help="Recrear colección (BORRA datos existentes). Usar solo para primer área o reset completo"
+    )
+
+    args = parser.parse_args()
+
+    # Validate area
+    area = validate_area(args.area)
+    area_display = get_area_display_name(area)
+
     setup_logging()
 
     logger.info("=" * 60)
     logger.info("RAG INGESTION PIPELINE - STARTING")
+    logger.info(f"ÁREA: {area_display} ({area})")
     logger.info("=" * 60)
 
     start_time = time.time()
@@ -47,14 +80,17 @@ def main():
         # Validate configuration
         config.validate()
         logger.info("Configuration validated successfully")
-        logger.info(f"Data directory: {config.data_dir}")
+
+        # Use custom data dir if provided
+        data_dir = Path(args.data_dir) if args.data_dir else config.data_dir
+        logger.info(f"Data directory: {data_dir}")
 
         # PHASE 1: Extract PDFs
         logger.info("\n" + "=" * 60)
         logger.info("PHASE 1: EXTRACTING PDFs")
         logger.info("=" * 60)
 
-        documents = extract_all_pdfs(config.data_dir)
+        documents = extract_all_pdfs(data_dir)
 
         if not documents:
             logger.error("No documents extracted. Exiting.")
@@ -62,13 +98,19 @@ def main():
 
         logger.info(f"✓ Extracted {len(documents)} documents")
 
+        # Add area to metadata for all documents
+        for doc in documents:
+            doc["metadata"]["area"] = area
+            logger.info(f"  → Metadata 'area' set to '{area}'")
+
         # Show document summaries
         for doc in documents:
             metadata = doc["metadata"]
             logger.info(
                 f"  - {metadata['documento_nombre']} "
                 f"({len(doc['content'])} characters, "
-                f"{len(doc['structure']['articulos'])} artículos)"
+                f"{len(doc['structure']['articulos'])} artículos, "
+                f"area='{area}')"
             )
 
         # PHASE 2: Chunk documents
@@ -119,7 +161,11 @@ def main():
         logger.info("PHASE 3: VECTORIZING AND UPLOADING")
         logger.info("=" * 60)
 
-        vectorizer = vectorize_chunks(chunks, recreate_collection=True)
+        # Use --recreate flag to recreate collection (WARNING: deletes all data)
+        if args.recreate:
+            logger.warning("⚠️  RECREATE MODE: Se eliminará la colección existente")
+
+        vectorizer = vectorize_chunks(chunks, recreate_collection=args.recreate)
 
         logger.info("✓ Vectorization completed")
 
