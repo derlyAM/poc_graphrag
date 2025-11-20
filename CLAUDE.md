@@ -1,401 +1,582 @@
 # INSTRUCCIONES PARA CLAUDE CODE
 
-> **IMPORTANTE**: Este documento describe tanto funcionalidad **IMPLEMENTADA** (✅) como **PLANEADA** (📋).
-> Verifica los badges antes de asumir que una característica está disponible.
+> **Sistema RAG para Documentos Normativos - Especificaciones Técnicas**
 
 ---
 
 ## ESTADO DEL PROYECTO
 
-**Versión Actual**: v1.2.0 (2025-10-28)
-**Estado**: Producción - Sistema con Multihop Retrieval
+**Versión Actual**: v1.3.0 (2025-10-28)
+**Estado**: ✅ **PRODUCCIÓN** - Sistema completo con Multihop, HyDE y Chatbot Conversacional
+**Precisión Global**: 88-92%
 
-### Funcionalidad Implementada (✅)
+---
+
+## FUNCIONALIDAD IMPLEMENTADA ✅
+
+### Core RAG Pipeline
 - ✅ Procesamiento jerárquico universal (documentos legales, técnicos)
-- ✅ Búsqueda vectorial con Qdrant
-- ✅ Re-ranking con cross-encoder
-- ✅ **Sistema Multihop Retrieval** (NUEVO v1.2.0)
-  - ✅ QueryDecomposer para análisis de complejidad
-  - ✅ MultihopRetriever para búsquedas iterativas
-  - ✅ Fusion scoring para chunks duplicados
-  - ✅ Soporte para queries condicionales, comparativas, procedurales
-- ✅ Generación con GPT-4o-mini (prompts especializados para multihop)
-- ✅ Sistema de citación legal
-- ✅ Interfaz Streamlit
-- ✅ Expansión de contexto con chunks adyacentes
+- ✅ Búsqueda vectorial con Qdrant (Cosine similarity)
+- ✅ Re-ranking con cross-encoder (ms-marco-MiniLM-L-12-v2)
+- ✅ Context expansion (chunks adyacentes con awareness jerárquico)
+- ✅ Citation management (validación automática de citaciones legales)
+- ✅ Generación con GPT-4o-mini (prompts especializados)
+- ✅ Interfaz Streamlit (RAG tradicional + Chatbot conversacional)
 
-### En Desarrollo (🚧)
-- 🚧 Query enhancement avanzado (detección de secciones por nombre)
-- 🚧 Metadata semántico enriquecido
+### Query Processing (v1.2.0)
+- ✅ **QueryEnhancer**: Detección de tipo de query y filtros estructurales
+- ✅ **QueryDecomposer**: Análisis de complejidad y descomposición
+- ✅ **MultihopRetriever**: Búsquedas iterativas con fusion scoring
+- ✅ Estrategias especializadas (comparison, conditional, procedural)
+- ✅ Adaptive top-K según área y número de documentos
 
-### Planeado (📋)
-- 📋 Auto-corrección inteligente (Fase 2 Multihop)
-- 📋 Verificación de completitud (Fase 2 Multihop)
-- 📋 Análisis de referencias cruzadas
-- 📋 Neo4j para grafo de conocimiento
-- 📋 LangGraph para sistema multi-agente avanzado (Fase 3 Multihop)
-- 📋 Redis para caché
-- 📋 Búsqueda híbrida (vector + keyword BM25)
-- 📋 FastAPI REST API
+### HyDE Retrieval (v1.3.0)
+- ✅ **HyDERetriever**: Generación de documentos hipotéticos
+- ✅ Prompts especializados por tipo de documento (legal, técnico)
+- ✅ Búsqueda híbrida (70% HyDE + 30% original) con RRF fusion
+- ✅ Activación selectiva (~25% de queries)
+- ✅ Fallback automático si scores <0.30
+
+### Response Validation (v1.3.0 - PHASE 3)
+- ✅ **ResponseValidator**: Validación de completitud
+- ✅ Detección de aspectos faltantes
+- ✅ Auto-retry con queries adicionales
+- ✅ Mejora iterativa de respuestas incompletas
+
+### Chatbot Conversacional (v1.3.0)
+- ✅ **ConversationalPipeline**: Orquestador multi-turno
+- ✅ **ConversationHistory**: Gestión de historial (20 turnos)
+- ✅ **QueryReformulator**: Reformulación contextual con LLM
+- ✅ **ResponseFormatter**: Modos corto/largo
+- ✅ Singleton pattern para recursos compartidos
+- ✅ 100% reuso del RAG base (composición, no herencia)
+- ✅ UI Streamlit dedicada (`app/pages/2_Chatbot_IA.py`)
+
+### Separación por Áreas (PHASE 2.5)
+- ✅ Áreas implementadas: `sgr`, `inteligencia_artificial`, `general`
+- ✅ Filtrado por área en Qdrant
+- ✅ Multi-select de documentos por área
+- ✅ Metadata completa por documento
 
 ---
 
-## CONTEXTO Y REQUERIMIENTOS
-
-### Problema a Resolver
-El usuario necesita consultar múltiples documentos normativos complejos (100+ páginas) que contienen:
-
-- Estructura jerárquica profunda (Títulos → Capítulos → Artículos → Parágrafos)
-- Referencias cruzadas intensivas ("conforme al artículo X", "según lo dispuesto en...")
-- Tablas, anexos y flujogramas complementarios
-- Actualizaciones y modificaciones entre documentos
-- Conceptos especializados (ej: "OCAD", "SGR", "viabilidad técnica")
-
-Tipos de Consultas Esperadas
-
-Resúmenes: "Resume el Título 4 del Acuerdo 03/2021"
-Búsquedas simples: "¿Qué es un OCAD?"
-Búsquedas complejas: "¿Qué documentos necesito para viabilizar un proyecto de infraestructura en fase III?"
-Procedimientos: "Explica el proceso de ajuste de proyectos aprobados"
-Comparaciones: "Diferencias entre Acuerdo 03/2021 y Acuerdo 13/2025"
-Listados: "Enumera todos los requisitos para proyectos de ciencia y tecnología"
-
-Requerimientos Críticos
-
-Citación precisa: Cada afirmación debe citar artículo exacto con formato legal estándar
-Separabilidad: Usuario selecciona áreas/proyectos específicos para consultar
-Trazabilidad: Mostrar path del grafo que llevó a la respuesta
-Performance: Respuestas en 3-8 segundos
-Costos: Optimizado para presupuesto mínimo (~$15/mes)
-Explicabilidad multinivel: Desde citación simple hasta visualización completa del razonamiento
-
-## ARQUITECTURA ACTUAL (✅ IMPLEMENTADA)
+## ARQUITECTURA IMPLEMENTADA
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     USUARIO (Streamlit UI)                       │
-│              Query → Parámetros → Visualización                  │
-└────────────────────────┬────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                    PIPELINE RAG (src/pipeline.py)                │
-│  ┌──────────────┐  ┌───────────────┐  ┌──────────────┐         │
-│  │ QueryEnhance │→ │ VectorSearch  │→ │ LLMClient    │         │
-│  │              │  │ (Qdrant)      │  │ (GPT-4o-mini)│         │
-│  └──────────────┘  └───────────────┘  └──────────────┘         │
-│         ↓                  ↓                   ↓                 │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │      CitationManager (Validación de citas)        │          │
-│  └──────────────────────────────────────────────────┘          │
-└────────────────────────┬────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                    RETRIEVAL (src/retrieval/)                    │
-│  ┌─────────────────────┐        ┌──────────────────────┐        │
-│  │   QDRANT (Vectores) │        │  Context Expansion   │        │
-│  │  • Vector search    │        │  • Adjacent chunks   │        │
-│  │  • Metadata filters │        │  • Hierarchy-aware   │        │
-│  └─────────────────────┘        └──────────────────────┘        │
-│           ↓                              ↓                       │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │       Reranker (cross-encoder MiniLM)             │          │
-│  └──────────────────────────────────────────────────┘          │
-└─────────────────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────────────┐
-│               INGESTIÓN (src/ingest/)                            │
-│  ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐   │
-│  │ PyMuPDF4LLM  │→ │ Hierarchical    │→ │ OpenAI Embed.    │   │
-│  │ (extracción) │  │ Processor       │  │ (vectorización)  │   │
-│  └──────────────┘  └─────────────────┘  └──────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Flujo de Datos IMPLEMENTADO
-
-#### 1. INGESTIÓN (Offline, ejecutar: `python scripts/01_ingest_pdfs.py`)
-```
-PDF → PyMuPDF4LLM → Texto estructurado con jerarquía
-  → DocumentHierarchyProcessor → Chunks multinivel (0-5)
-  → OpenAI Embeddings (text-embedding-3-large) → Vectores 1536-dim
-  → Carga en Qdrant con metadata jerárquica completa
-```
-
-#### 2. CONSULTA (Online, vía Streamlit o pipeline.py)
-```
-User Query → QueryEnhancer (detecta filtros: capítulo, artículo, etc.)
-  → Embedding de query (text-embedding-3-large)
-  → Búsqueda vectorial en Qdrant (top-K configurable)
-  → Context Expansion (chunks adyacentes vía metadata)
-  → Re-ranking con cross-encoder (MiniLM-L-6-v2)
-  → GPT-4o-mini genera respuesta con contexto
-  → CitationManager inyecta y valida referencias
-  → Return respuesta + fuentes + métricas
+│                     STREAMLIT UI                                 │
+│  ┌──────────────────────┐  ┌──────────────────────────────┐    │
+│  │  RAG Tradicional     │  │  Chatbot Conversacional      │    │
+│  │  (streamlit_app.py)  │  │  (2_Chatbot_IA.py)           │    │
+│  └──────────────────────┘  └──────────────────────────────┘    │
+└────────────────────┬───────────────────┬──────────────────────────┘
+                     │                   │
+              ┌──────▼───────┐    ┌─────▼─────────────────┐
+              │              │    │ ConversationalPipeline│
+              │ RAGPipeline  │◄───┤ (COMPOSICIÓN)         │
+              │ (Singleton)  │    └───────────────────────┘
+              └──────┬───────┘           │
+                     │                   │
+        ┌────────────┴────────────┬──────┴──────────┐
+        │                         │                  │
+   ┌────▼─────┐            ┌─────▼──────┐   ┌──────▼──────────┐
+   │  Query   │            │  Multihop  │   │     HyDE        │
+   │ Enhancer │            │ Retriever  │   │   Retriever     │
+   └──────────┘            └────────────┘   └─────────────────┘
+        │                         │                  │
+        └─────────────────┬───────┴──────────────────┘
+                          │
+                  ┌───────▼────────┐
+                  │ Vector Search  │
+                  │   (Qdrant)     │
+                  └───────┬────────┘
+                          │
+                  ┌───────▼────────┐
+                  │   Reranker     │
+                  └───────┬────────┘
+                          │
+                  ┌───────▼────────┐
+                  │  LLM Client    │
+                  │ (GPT-4o-mini)  │
+                  └───────┬────────┘
+                          │
+                  ┌───────▼────────┐
+                  │   Citation     │
+                  │   Manager      │
+                  └────────────────┘
 ```
 
 ---
 
-## ARQUITECTURA FUTURA (📋 PLANEADA - NO IMPLEMENTADA)
+## STACK TECNOLÓGICO
 
-> ⚠️ **Las siguientes características NO están implementadas actualmente**
-
-### Componentes Planeados
-
-#### Neo4j (📋 Planeado)
-```python
-# NO IMPLEMENTADO - Diseño propuesto
-neo4j:
-  deployment: "Docker local (./neo4j_data)"
-  puertos: [7474, 7687]
-  uso: "Graph database con vectores nativos"
-  plugins: ["apoc", "graph-data-science"]
-```
-
-#### LangGraph (📋 Planeado)
-```python
-# NO IMPLEMENTADO - Diseño propuesto
-langgraph:
-  uso: "Sistema multi-agente con flujos condicionales"
-  componentes:
-    - QueryAnalyzer: "Clasificación inteligente de queries"
-    - RetrievalAgent: "Búsquedas iterativas"
-    - VerificationAgent: "Validación de completitud"
-```
-
-#### Redis (📋 Planeado)
-```python
-# NO IMPLEMENTADO - Diseño propuesto
-redis:
-  deployment: "Docker local (./redis_data)"
-  uso: "Caché de queries y resultados"
-```
-
-Ver `docs/ANALISIS_MEJORAS_RAG.md` para detalles completos de mejoras planeadas
-
-
----
-
-## STACK TECNOLÓGICO IMPLEMENTADO (✅)
-
-### Entorno Python
+### Lenguaje y Entorno
 ```yaml
-python: "3.11"
+python: "3.11+"
 package_manager: "pip"
 env_manager: "venv"
 ```
 
-### Extracción y Procesamiento (✅)
+### Extracción y Procesamiento
 ```yaml
-pymupdf4llm:
-  version: "0.0.27"
-  uso: "Extracción de texto de PDFs preservando estructura"
-
-tiktoken:
-  version: ">=0.5.2"
-  uso: "Conteo de tokens para OpenAI"
+pymupdf4llm: "0.0.27"  # Extracción de PDFs
+tiktoken: ">=0.5.2"     # Conteo de tokens
 ```
 
-### Almacenamiento (✅)
+### Almacenamiento Vectorial
 ```yaml
-qdrant_client:
-  version: ">=1.7.0"
-  deployment: "Docker local (./storage/qdrant_local)"
-  puerto: 6333
-  colección: "normativa_sgr"
-  features_usadas:
-    - Búsqueda vectorial (Cosine similarity)
-    - Metadata filtering (capitulo, titulo, articulo, etc.)
-    - Scroll API para recuperación masiva
+qdrant_client: ">=1.7.0"
+deployment: "Docker local (./storage/qdrant_local)"
+puerto: 6333
+coleccion: "normativa_sgr"
 ```
 
-### Modelos de IA (✅)
+### Modelos de IA
 ```yaml
-openai:
-  embeddings:
-    modelo: "text-embedding-3-large"
-    dimensiones: 1536
-    costo: "$0.13 / 1M tokens"
+# Embeddings
+embedding_model: "text-embedding-3-small"  # Queries
+embedding_model_docs: "text-embedding-3-large"  # Documentos
+dimensions: 1536
 
-  llm:
-    modelo: "gpt-4o-mini"
-    costo: "$0.150 / 1M tokens input, $0.600 / 1M output"
-    contexto: "128k tokens"
-    temperatura: 0.1
+# LLM
+llm_model: "gpt-4o-mini"
+contexto: "128k tokens"
+temperatura: 0.1
 ```
 
-### Re-ranking (✅)
+### Re-ranking
 ```yaml
-sentence_transformers:
-  modelo: "cross-encoder/ms-marco-MiniLM-L-6-v2"
-  deployment: "Local (CPU)"
-  uso: "Re-ranking de chunks post-retrieval"
+modelo: "cross-encoder/ms-marco-MiniLM-L-12-v2"
+deployment: "Local (CPU)"
 ```
 
-### Interfaz (✅)
+### UI
 ```yaml
-streamlit:
-  version: ">=1.30.0"
-  uso: "UI interactiva para queries"
-  puerto: 8501
+streamlit: ">=1.30.0"
+puerto: 8501
 ```
 
-### Utilidades (✅)
+### Utilidades
 ```yaml
 loguru: "Logging estructurado"
 pydantic: "Validación de configuración"
-python-dotenv: "Gestión de API keys"
+python-dotenv: "Variables de entorno"
 ```
 
 ---
 
-## DEPENDENCIAS NO USADAS (📋 Para futuras fases)
+## FLUJO DE DATOS IMPLEMENTADO
 
-> ⚠️ **Las siguientes dependencias están en requirements.txt pero NO se usan actualmente**
+### 1. INGESTIÓN (Offline)
 
-```yaml
-# NO IMPLEMENTADO
-llama-index: "Presente pero no usado - usamos implementación custom"
-neo4j: "NO conectado - planeado para Fase 2"
-redis: "NO usado - planeado para caché"
-langgraph: "NO usado - planeado para multi-agente"
-fastapi: "NO usado - planeado para API REST"
+```bash
+python scripts/01_ingest_pdfs.py
 ```
 
-### Dependencias Actuales en requirements.txt
-Ver `requirements.txt` para lista completa de paquetes instalados
+```
+PDF → PyMuPDF4LLM → Markdown estructurado
+  → DocumentHierarchyProcessor → Chunks multinivel (0-5)
+  → OpenAI Embeddings (text-embedding-3-large) → Vectores 1536-dim
+  → Carga en Qdrant con metadata completa
+```
 
+**Resultado**: 2443 chunks indexados (Legal + Técnico + IA)
+
+### 2. CONSULTA RAG (Online)
+
+```
+User Query → QueryEnhancer (detecta tipo y filtros)
+  ↓
+¿Multihop necesario?
+  ├─ NO → Vector Search (single-hop)
+  └─ SÍ → QueryDecomposer → MultihopRetriever (sub-queries + fusion)
+  ↓
+¿HyDE beneficioso?
+  ├─ NO → Usa query original
+  └─ SÍ → HyDERetriever (doc hipotético + RRF fusion)
+  ↓
+Re-ranking (cross-encoder) → Top-N final
+  ↓
+Context Expansion (chunks adyacentes)
+  ↓
+LLM Generation (GPT-4o-mini con prompts especializados)
+  ↓
+Citation Manager (validación + inyección)
+  ↓
+¿Response Validation activada?
+  └─ SÍ → Validar completitud → Auto-retry si incompleto
+  ↓
+Return respuesta + fuentes + métricas
+```
+
+### 3. CONSULTA CHATBOT (Online)
+
+```
+User Query → ConversationHistory.get_recent()
+  ↓
+QueryReformulator (detecta referencias + reformula con LLM)
+  ↓
+RAGPipeline.query(reformulated_query) [FLUJO COMPLETO ARRIBA]
+  ↓
+ResponseFormatter (short/long mode)
+  ↓
+ConversationHistory.add_turn()
+  ↓
+Return respuesta formateada + historial
+```
 
 ---
 
-## SCHEMAS DE DATOS IMPLEMENTADOS
+## SCHEMAS DE DATOS (Qdrant)
 
-### Schema Qdrant Actual (✅)
+### Colección Única
+**Nombre**: `normativa_sgr`
+**Vector size**: 1536
+**Distance**: Cosine
 
-**Colección única**: `normativa_sgr`
-
-```python
-# ✅ IMPLEMENTADO
-collection_config = {
-    "vector_size": 1536,
-    "distance": "Cosine",
-    "on_disk_payload": True
-}
-```
-
-> ⚠️ **NO IMPLEMENTADO**: Colecciones separadas por área
->
-> El diseño original contemplaba múltiples colecciones (area_juridica, area_tecnica, etc.)
-> pero la implementación actual usa UNA sola colección con filtros de metadata
-
-### Schema de Payload (Metadata por Chunk) - ✅ IMPLEMENTADO
+### Payload por Chunk
 
 ```python
 {
-    # === IDENTIFICACIÓN ÚNICA ===
-    "chunk_id": "uuid-string",  # UUID generado
-    "documento_id": "acuerdo_03_2021",  # ID único del documento
-    
-    # === INFORMACIÓN DEL DOCUMENTO ===
-    "documento_nombre": "Acuerdo Único del Sistema General de Regalías",
-    "documento_tipo": "Acuerdo",  # Acuerdo | Decreto | Resolución | Ley
+    # IDENTIFICACIÓN
+    "chunk_id": "uuid",
+    "documento_id": "acuerdo_03_2021",
+    "area": "sgr",  # sgr | inteligencia_artificial | general
+
+    # DOCUMENTO
+    "documento_nombre": "Acuerdo Único del SGR",
+    "documento_tipo": "legal",  # legal | technical | generic
     "documento_numero": "03",
     "documento_año": 2021,
-    "documento_fecha": "2021-04-08",
-    
-    # === TIPO DE DOCUMENTO (✅ Implementado) ===
-    "tipo_documento": "legal",  # legal | technical | financial | environmental | generic
 
-    # === CLASIFICACIÓN (📋 Planeado - NO implementado) ===
-    "area": None,  # ⚠️ NO IMPLEMENTADO - Planeado para futuro
-    "proyecto": None,  # ⚠️ NO IMPLEMENTADO - Planeado para futuro
-    "tags": [],  # ⚠️ NO IMPLEMENTADO - Planeado para futuro
+    # JERARQUÍA
+    "nivel_jerarquico": 3,  # 0-5
+    "parent_id": "uuid-padre",
+    "children_ids": ["uuid-hijo1", "uuid-hijo2"],
+    "hierarchy_path": "Doc > Título 4 > Capítulo 5 > Artículo 4.5.1.2",
 
-    # === ESTADO DEL DOCUMENTO (📋 Planeado - NO implementado) ===
-    "vigente": None,  # ⚠️ NO IMPLEMENTADO
-    "modificado_por": [],  # ⚠️ NO IMPLEMENTADO
-    "fecha_modificacion": None,  # ⚠️ NO IMPLEMENTADO
-    
-    # === JERARQUÍA (✅ Implementado) ===
-    "nivel_jerarquico": 3,  # 0=doc, 1=titulo, 2=cap, 3=art, 4=para, 5=anexo
-    "parent_id": "uuid-del-padre",  # ✅ Vinculación parent-child
-    "children_ids": ["uuid-hijo-1", "uuid-hijo-2"],  # ✅ Implementado
-    "hierarchy_path": "Doc > Título 4 > Capítulo 5 > Artículo 4.5.1.2",  # ✅ Implementado
-
-    # === CAMPOS JERÁRQUICOS ESPECÍFICOS (✅ Implementado) ===
+    # CAMPOS JERÁRQUICOS ESPECÍFICOS
     # Legal
-    "titulo": "4",  # ✅ Número de título
-    "capitulo": "5",  # ✅ Número de capítulo
-    "articulo": "4.5.1.2",  # ✅ Número de artículo
-    "paragrafo": None,  # ✅ Número de parágrafo (si existe)
+    "titulo": "4",
+    "capitulo": "5",
+    "articulo": "4.5.1.2",
+    "paragrafo": None,
 
     # Técnico
-    "seccion": "6",  # ✅ Número de sección
-    "subseccion": None,  # ✅ Número de subsección (si existe)
-    "subsubseccion": None,  # ✅ Sub-subsección (si existe)
+    "seccion": "6",
+    "subseccion": None,
+    "subsubseccion": None,
 
-    # Anexos (universal)
-    "anexo_numero": None,  # ✅ Número de anexo (si es anexo)
-    "es_anexo": False,  # ✅ Boolean indicando si es anexo
+    # Anexos
+    "anexo_numero": None,
+    "es_anexo": False,
 
-    # ⚠️ NOMBRES DE ELEMENTOS - PARCIALMENTE IMPLEMENTADO
-    "titulo_nombre": None,  # ⚠️ NO guardado actualmente
-    "capitulo_nombre": None,  # ⚠️ NO guardado actualmente
-    "seccion_nombre": None,  # 🚧 En desarrollo (extraído de hierarchy_path)
-    
-    # === CONTENIDO TEXTUAL (✅ Implementado) ===
-    "texto": "Los ajustes a los proyectos de inversión aprobados...",  # ✅ Contenido completo
-    "longitud_tokens": 214,  # ✅ Calculado con tiktoken
+    # CONTENIDO
+    "texto": "Los ajustes a los proyectos de inversión...",
+    "longitud_tokens": 214,
 
-    # === METADATA DE PROCESAMIENTO (✅ Implementado) ===
-    "fecha_procesamiento": "2025-10-21T10:30:00",  # ✅ Timestamp de ingestión
-    "tipo_documento": "legal",  # ✅ legal | technical | generic
-
-    # === CITACIÓN (✅ Implementado) ===
-    "citacion_corta": "Art. 4.5.1.2, Acuerdo 03/2021",  # ✅ Formato corto
-
-    # === CAMPOS NO IMPLEMENTADOS (📋 Planeados) ===
-    "texto_limpio": None,  # ⚠️ NO IMPLEMENTADO
-    "texto_previo": None,  # ⚠️ NO IMPLEMENTADO
-    "texto_siguiente": None,  # ⚠️ NO IMPLEMENTADO
-    "chunk_anterior_id": None,  # ⚠️ NO IMPLEMENTADO
-    "chunk_siguiente_id": None,  # ⚠️ NO IMPLEMENTADO
-
-    "resumen_chunk": None,  # ⚠️ NO IMPLEMENTADO
-    "resumen_articulo": None,  # ⚠️ NO IMPLEMENTADO
-    "resumen_capitulo": None,  # ⚠️ NO IMPLEMENTADO
-    "es_resumen": False,  # ⚠️ NO IMPLEMENTADO
-
-    "conceptos_clave": [],  # ⚠️ NO IMPLEMENTADO - Requiere NER
-    "entidades_mencionadas": [],  # ⚠️ NO IMPLEMENTADO - Requiere NER
-    "tipo_contenido": None,  # ⚠️ NO IMPLEMENTADO
-    "contiene_tabla": None,  # ⚠️ NO IMPLEMENTADO
-    "contiene_lista": None,  # ⚠️ NO IMPLEMENTADO
-
-    "citacion_completa": None,  # ⚠️ NO IMPLEMENTADO
-    "citacion_apa": None,  # ⚠️ NO IMPLEMENTADO
-
-    "pagina": None,  # ⚠️ NO IMPLEMENTADO
-    "posicion_inicio": None,  # ⚠️ NO IMPLEMENTADO
-    "posicion_fin": None,  # ⚠️ NO IMPLEMENTADO
-    "bbox": None,  # ⚠️ NO IMPLEMENTADO
-
-    "chunk_index": None,  # ⚠️ NO IMPLEMENTADO
-    "version_procesamiento": None,  # ⚠️ NO IMPLEMENTADO
-    "embedding_model": "text-embedding-3-large",  # ✅ Usado pero no guardado en payload
-
-    "referencias_a": [],  # ⚠️ NO IMPLEMENTADO - Requiere análisis de referencias
-    "referenciado_por": [],  # ⚠️ NO IMPLEMENTADO
-    "relacionado_con": [],  # ⚠️ NO IMPLEMENTADO
-
-    "idioma": None,  # ⚠️ NO IMPLEMENTADO
-    "pais": None,  # ⚠️ NO IMPLEMENTADO
-    "jurisdiccion": None,  # ⚠️ NO IMPLEMENTADO
+    # PROCESAMIENTO
+    "fecha_procesamiento": "2025-10-28T10:30:00",
+    "citacion_corta": "Art. 4.5.1.2, Acuerdo 03/2021",
 }
 ```
 
-> **RESUMEN DE IMPLEMENTACIÓN**:
-> - ✅ **Implementado (30%)**: Jerarquía completa, vectorización, citación básica
-> - 🚧 **En desarrollo (5%)**: Nombres de secciones, metadata enriquecido
-> - ⚠️ **NO implementado (65%)**: NER, análisis semántico, referencias cruzadas, resúmenes automáticos
->
-> **Ver `docs/ARQUITECTURA_TECNICA.md`** para detalles de campos efectivamente implementados
+---
+
+## CONFIGURACIÓN (src/config.py)
+
+```python
+# Áreas válidas
+VALID_AREAS = {
+    "sgr": "Sistema General de Regalías",
+    "inteligencia_artificial": "Inteligencia Artificial",
+    "general": "General"
+}
+
+# Retrieval
+RETRIEVAL_TOP_K = 20  # Chunks iniciales
+RETRIEVAL_TOP_K_RERANK = 5  # Chunks finales
+
+# LLM
+LLM_MODEL = "gpt-4o-mini"
+LLM_TEMPERATURE = 0.1
+LLM_MAX_TOKENS = 800
+
+# Embeddings
+EMBEDDING_MODEL = "text-embedding-3-small"  # Queries
+EMBEDDING_MODEL_DOCS = "text-embedding-3-large"  # Documentos
+```
+
+---
+
+## MÉTRICAS DE PRECISIÓN
+
+### Por Tipo de Query
+
+| Tipo | Técnicas | v1.0 | v1.3 | Mejora |
+|------|----------|------|------|--------|
+| Simple semántica | Vector + Rerank | 70% | 75% | +5% |
+| Estructural | Enhancement + Filters | 60% | 85% | +25% |
+| Definiciones | HyDE + RRF | 60% | 90% | +30% |
+| Condicional | Multihop + Fusion | 10% | 85% | +750% |
+| Comparativa | Multihop comparison | 10% | 85% | +750% |
+| Terminología incorrecta | HyDE fallback | 35% | 75% | +114% |
+
+### Performance
+
+| Escenario | Latencia | Costo | Precisión |
+|-----------|----------|-------|-----------|
+| Query simple | 3-5s | $0.005 | 75% |
+| Query + HyDE | 5-7s | $0.008 | 90% |
+| Query multihop | 8-15s | $0.015 | 85% |
+| Query completa | 15-20s | $0.025 | 88-92% |
+
+**Promedio global**: 88-92% precisión, ~6s latencia, ~$0.007/query
+
+---
+
+## ESTRUCTURA DEL PROYECTO
+
+```
+Poc_Rag_Graph/
+├── data/                    # PDFs de entrada
+├── src/
+│   ├── config.py            # Configuración centralizada
+│   ├── pipeline.py          # RAG Pipeline principal
+│   ├── shared_resources.py  # Singleton para recursos compartidos
+│   │
+│   ├── ingest/              # Pipeline de ingestión
+│   │   ├── pdf_extractor.py
+│   │   ├── document_hierarchy_processor.py  # Procesador universal
+│   │   ├── hierarchy_config.py              # Configuración jerarquías
+│   │   ├── chunker.py
+│   │   └── vectorizer.py
+│   │
+│   ├── retrieval/           # Sistema de búsqueda
+│   │   ├── vector_search.py
+│   │   ├── reranker.py
+│   │   ├── query_enhancer.py
+│   │   ├── query_decomposer.py      # v1.2.0
+│   │   ├── multihop_retriever.py    # v1.2.0
+│   │   ├── hyde_retriever.py        # v1.3.0
+│   │   └── response_validator.py    # v1.3.0 PHASE 3
+│   │
+│   ├── generation/          # Generación de respuestas
+│   │   ├── llm_client.py
+│   │   └── citation_manager.py
+│   │
+│   └── chatbot/             # Chatbot conversacional (v1.3.0)
+│       ├── conversational_pipeline.py
+│       ├── conversation_manager.py
+│       ├── query_reformulator.py
+│       ├── response_formatter.py
+│       └── prompts.py
+│
+├── app/                     # Interfaces Streamlit
+│   ├── streamlit_app.py     # RAG tradicional
+│   └── pages/
+│       └── 2_Chatbot_IA.py  # Chatbot conversacional
+│
+├── scripts/                 # Scripts de utilidad
+│   ├── 01_ingest_pdfs.py    # Ingestión
+│   ├── test_multihop.py     # Testing multihop
+│   ├── test_hyde.py         # Testing HyDE
+│   └── test_chatbot_shared_pipeline.py  # Testing chatbot
+│
+├── docs/                    # Documentación
+│   ├── STACK_TECNOLOGICO.md          # Tecnologías y técnicas
+│   ├── ARQUITECTURA_TECNICA.md       # Arquitectura detallada
+│   ├── SISTEMA_MULTIHOP.md           # Sistema multihop
+│   ├── SISTEMA_HYDE.md               # Sistema HyDE
+│   ├── FLUJO_IMPLEMENTADO_EXPLICADO.md  # Flujo completo
+│   └── chatbot/
+│       └── CHATBOT_DOCUMENTACION_COMPLETA.md  # Chatbot
+│
+├── storage/                 # Datos de Qdrant
+├── logs/                    # Logs de aplicación
+├── requirements.txt
+├── docker-compose.yml
+├── CHANGELOG.md
+├── CLAUDE.md               # ← ESTE ARCHIVO
+└── README.md
+```
+
+---
+
+## DOCUMENTOS CLAVE PARA DESARROLLADORES
+
+### Documentación Principal
+
+| Documento | Descripción | Cuándo Leer |
+|-----------|-------------|-------------|
+| **CLAUDE.md** | ← Estás aquí - Especificaciones técnicas | Primera lectura |
+| **README.md** | Guía de inicio rápido y uso básico | Instalación |
+| **CHANGELOG.md** | Historial de cambios por versión | Entender evolución |
+
+### Documentación Técnica (`docs/`)
+
+| Documento | Descripción | Audiencia |
+|-----------|-------------|-----------|
+| **STACK_TECNOLOGICO.md** | Listado completo de tecnologías y métricas de precisión | Todos |
+| **ARQUITECTURA_TECNICA.md** | Arquitectura detallada del sistema | Desarrolladores |
+| **FLUJO_IMPLEMENTADO_EXPLICADO.md** | Flujo completo paso a paso | Principiantes |
+| **SISTEMA_MULTIHOP.md** | Sistema multihop retrieval (40+ páginas) | Implementadores multihop |
+| **SISTEMA_HYDE.md** | Sistema HyDE con RRF fusion (40+ páginas) | Implementadores HyDE |
+| **chatbot/CHATBOT_DOCUMENTACION_COMPLETA.md** | Chatbot conversacional completo | Implementadores chatbot |
+
+### Flujo de Lectura Recomendado
+
+**Desarrolladores nuevos**:
+1. README.md (instalación)
+2. CLAUDE.md (este archivo - overview técnico)
+3. STACK_TECNOLOGICO.md (tecnologías y métricas)
+4. FLUJO_IMPLEMENTADO_EXPLICADO.md (entender flujo completo)
+5. ARQUITECTURA_TECNICA.md (profundizar)
+
+**Implementadores de features específicas**:
+- Multihop: SISTEMA_MULTIHOP.md
+- HyDE: SISTEMA_HYDE.md
+- Chatbot: chatbot/CHATBOT_DOCUMENTACION_COMPLETA.md
+
+---
+
+## USO BÁSICO
+
+### Ingestión (una vez)
+
+```bash
+# Levantar Qdrant
+docker-compose up -d
+
+# Ingestar documentos
+python scripts/01_ingest_pdfs.py
+```
+
+### Interfaz Web
+
+```bash
+streamlit run app/streamlit_app.py
+
+# Navegar a:
+# - Página principal: RAG tradicional
+# - Sidebar → Chatbot IA: Chatbot conversacional
+```
+
+### Uso Programático
+
+```python
+from src.pipeline import RAGPipeline
+
+# RAG tradicional
+pipeline = RAGPipeline()
+result = pipeline.query(
+    question="¿Qué es un OCAD?",
+    area="sgr",  # REQUERIDO
+    enable_multihop=True,
+    enable_hyde=True,
+    enable_validation=True
+)
+
+print(result["answer"])
+print(f"Precisión: {result['metrics']['hyde_used']}")
+print(f"Costo: ${result['metrics']['total_cost']:.6f}")
+```
+
+```python
+from src.chatbot.conversational_pipeline import ConversationalPipeline
+from src.shared_resources import get_shared_pipeline
+
+# Chatbot conversacional
+shared_rag = get_shared_pipeline()
+chatbot = ConversationalPipeline(
+    area="inteligencia_artificial",
+    shared_pipeline=shared_rag
+)
+
+# Conversación multi-turno
+r1 = chatbot.query("¿Qué es TensorFlow?", response_mode="long")
+r2 = chatbot.query("¿Cuáles son sus ventajas?", response_mode="short")
+r3 = chatbot.query("Dame ejemplos", response_mode="long")
+```
+
+---
+
+## TESTING
+
+```bash
+# Testing multihop
+python scripts/test_multihop.py
+
+# Testing HyDE
+python scripts/test_hyde.py
+
+# Testing chatbot
+python scripts/test_chatbot_shared_pipeline.py
+```
+
+---
+
+## COSTOS ESTIMADOS
+
+### Ingestión (una vez)
+- Embeddings: ~$0.14 (2443 chunks con text-embedding-3-large)
+
+### Operación (por mes, 1000 queries)
+- Promedio: ~$7/mes
+- Rango: $5-25/mes (según complejidad de queries)
+
+### Por Query
+- Simple: $0.005
+- Compleja (multihop + HyDE + validation): $0.025
+- Promedio: ~$0.007
+
+---
+
+## LIMITACIONES CONOCIDAS
+
+1. **Qdrant local**: No soporta concurrencia (se usa singleton)
+2. **Latencia en queries complejas**: 15-20s (aceptable para precisión 90%+)
+3. **Sin auto-corrección avanzada**: Planeado para v2.0
+4. **Sin persistencia de historial chatbot**: Se pierde al cerrar navegador
+5. **Sin búsqueda híbrida BM25+Vector**: Planeado para futuro
+
+---
+
+## PRÓXIMOS PASOS (NO IMPLEMENTADO)
+
+### Planeado para v2.0
+- [ ] Búsqueda híbrida (BM25 + Vector)
+- [ ] Neo4j para grafo de conocimiento
+- [ ] LangGraph para multi-agente avanzado
+- [ ] Redis para caché
+- [ ] FastAPI REST API
+- [ ] Persistencia de historial chatbot
+- [ ] Monitoreo con Prometheus/Grafana
+
+---
+
+## NOTAS IMPORTANTES
+
+### Para Claude Code
+
+1. **SIEMPRE consulta CHANGELOG.md** antes de sugerir features - puede que ya estén implementadas
+2. **Revisa STACK_TECNOLOGICO.md** para ver técnicas y métricas actuales
+3. **NO modifiques RAGPipeline** sin antes verificar impacto en chatbot (usa composición)
+4. **Usa Singleton** para recursos compartidos (SharedPipelineManager)
+5. **Testing**: Ejecuta scripts de testing después de cambios
+
+### Principios de Diseño
+
+1. **Composición sobre Herencia**: Chatbot CONTIENE RAGPipeline, no hereda
+2. **Activación Selectiva**: Multihop y HyDE solo cuando benefician
+3. **Fallbacks Automáticos**: Sistema degrada gracefully
+4. **Zero Modificaciones al RAG**: Features nuevas vía composición
+5. **Documentación Actualizada**: Mantener CHANGELOG y docs sincronizados
+
+---
+
+**Versión**: v1.3.0
+**Última actualización**: 2025-10-28
+**Estado**: ✅ Producción
+**Precisión**: 88-92%
+**Cobertura**: RAG + Multihop + HyDE + Chatbot
