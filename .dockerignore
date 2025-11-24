@@ -1,0 +1,76 @@
+# ==============================================================================
+# .dockerignore - Exclude files from Docker build context
+# ==============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs (will be mounted as volume)
+logs/
+*.log
+
+# Storage (will be mounted as volume)
+storage/
+
+# Data (will be mounted as read-only volume)
+# Keep data/ in context for ingestion service
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker
+docker-compose.yml
+Dockerfile*
+
+# Environment files (will be provided via env vars)
+.env.example
+
+# Scripts (not needed in containers)
+scripts/
+
+# Misc
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/

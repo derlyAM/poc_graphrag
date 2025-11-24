@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # ==============================================================================
+  # Qdrant Vector Database
+  # ==============================================================================
   qdrant:
     image: qdrant/qdrant:v1.12.5
     container_name: qdrant_vectordb
@@ -14,6 +17,136 @@ services:
     restart: unless-stopped
     networks:
       - rag_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==============================================================================
+  # FastAPI REST API Service
+  # ==============================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: rag_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage  # Shared storage for Qdrant data
+      - ./logs:/app/logs        # Logs directory
+      - ./data:/app/data:ro     # Data directory (read-only)
+    environment:
+      # Qdrant Configuration (override for Docker)
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-normativa_sgr}
+      - QDRANT_USE_MEMORY=false
+
+      # OpenAI API
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # Embedding Models
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1536}
+
+      # LLM Configuration
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.1}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-800}
+
+      # Retrieval Configuration
+      - TOP_K_RETRIEVAL=${TOP_K_RETRIEVAL:-20}
+      - TOP_K_RERANK=${TOP_K_RERANK:-5}
+      - CHUNK_SIZE=${CHUNK_SIZE:-500}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-50}
+
+      # Re-ranking Model
+      - RERANKER_MODEL=${RERANKER_MODEL:-cross-encoder/ms-marco-MiniLM-L-12-v2}
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE=logs/api.log
+
+      # Paths
+      - DATA_DIR=/app/data
+      - STORAGE_DIR=/app/storage
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - rag_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==============================================================================
+  # Streamlit UI Service
+  # ==============================================================================
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: rag_streamlit
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./storage:/app/storage  # Shared storage for Qdrant data
+      - ./logs:/app/logs        # Logs directory
+      - ./data:/app/data:ro     # Data directory (read-only)
+    environment:
+      # Qdrant Configuration (override for Docker)
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-normativa_sgr}
+      - QDRANT_USE_MEMORY=false
+
+      # OpenAI API
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # Embedding Models
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1536}
+
+      # LLM Configuration
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.1}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-800}
+
+      # Retrieval Configuration
+      - TOP_K_RETRIEVAL=${TOP_K_RETRIEVAL:-20}
+      - TOP_K_RERANK=${TOP_K_RERANK:-5}
+      - CHUNK_SIZE=${CHUNK_SIZE:-500}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-50}
+
+      # Re-ranking Model
+      - RERANKER_MODEL=${RERANKER_MODEL:-cross-encoder/ms-marco-MiniLM-L-12-v2}
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE=logs/streamlit.log
+
+      # Paths
+      - DATA_DIR=/app/data
+      - STORAGE_DIR=/app/storage
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - rag_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   rag_network:
