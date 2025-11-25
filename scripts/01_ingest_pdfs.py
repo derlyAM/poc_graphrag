@@ -60,6 +60,17 @@ def main():
         action="store_true",
         help="Recrear colección (BORRA datos existentes). Usar solo para primer área o reset completo"
     )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        default=True,
+        help="Saltar documentos que ya existen en Qdrant (default: True, previene duplicados)"
+    )
+    parser.add_argument(
+        "--force-reprocess",
+        action="store_true",
+        help="Forzar reprocesamiento de todos los PDFs (ignora duplicados). Sobrescribe --skip-existing"
+    )
 
     args = parser.parse_args()
 
@@ -85,12 +96,59 @@ def main():
         data_dir = Path(args.data_dir) if args.data_dir else config.data_dir
         logger.info(f"Data directory: {data_dir}")
 
+        # PHASE 0: Check existing documents (deduplication)
+        existing_doc_ids = set()
+
+        if not args.force_reprocess and args.skip_existing and not args.recreate:
+            logger.info("\n" + "=" * 60)
+            logger.info("PHASE 0: CHECKING EXISTING DOCUMENTS")
+            logger.info("=" * 60)
+            logger.info("Deduplication enabled: will skip documents already in Qdrant")
+
+            try:
+                from src.ingest.vectorizer import Vectorizer
+                vectorizer_check = Vectorizer(use_hybrid_search=False)
+                existing_doc_ids = vectorizer_check.get_existing_document_ids(area=area)
+
+                if existing_doc_ids:
+                    logger.info(f"Found {len(existing_doc_ids)} existing documents in area '{area}'")
+                    logger.info("These documents will be skipped during extraction")
+                else:
+                    logger.info(f"No existing documents found in area '{area}'")
+                    logger.info("All PDFs in directory will be processed")
+
+                # IMPORTANT: Close Qdrant client to release lock (Qdrant local mode allows only 1 connection)
+                if hasattr(vectorizer_check, 'qdrant_client'):
+                    vectorizer_check.qdrant_client.close()
+                    logger.info("Qdrant client closed (lock released)")
+
+            except Exception as e:
+                logger.warning(f"Could not check existing documents: {e}")
+                logger.warning("Will proceed without deduplication")
+                existing_doc_ids = set()
+
+        elif args.force_reprocess:
+            logger.info("\n" + "=" * 60)
+            logger.info("FORCE REPROCESS MODE")
+            logger.info("=" * 60)
+            logger.warning("⚠️  All PDFs will be processed (may create duplicates)")
+
+        elif args.recreate:
+            logger.info("\n" + "=" * 60)
+            logger.info("RECREATE MODE")
+            logger.info("=" * 60)
+            logger.warning("⚠️  Collection will be recreated (existing data will be deleted)")
+
         # PHASE 1: Extract PDFs
         logger.info("\n" + "=" * 60)
         logger.info("PHASE 1: EXTRACTING PDFs")
         logger.info("=" * 60)
 
-        documents = extract_all_pdfs(data_dir)
+        documents = extract_all_pdfs(
+            data_dir,
+            existing_doc_ids=existing_doc_ids,
+            area=area  # Pass area for composite documento_id comparison
+        )
 
         if not documents:
             logger.error("No documents extracted. Exiting.")
@@ -99,8 +157,22 @@ def main():
         logger.info(f"✓ Extracted {len(documents)} documents")
 
         # Add area to metadata for all documents
+        # Also prepend area to documento_id to prevent collisions across areas
         for doc in documents:
+            # Get original documento_id (just filename)
+            original_doc_id = doc["metadata"]["documento_id"]
+
+            # Create composite documento_id with area prefix
+            # Format: {area}_{original_id}
+            # Example: "sgr_acuerdo_03_2021" or "inteligencia_artificial_tensorflow_guide"
+            composite_doc_id = f"{area}_{original_doc_id}"
+
+            # Update metadata
             doc["metadata"]["area"] = area
+            doc["metadata"]["documento_id"] = composite_doc_id
+            doc["metadata"]["documento_id_original"] = original_doc_id  # Keep original for reference
+
+            logger.info(f"  → Documento ID: {original_doc_id} → {composite_doc_id}")
             logger.info(f"  → Metadata 'area' set to '{area}'")
 
         # Show document summaries

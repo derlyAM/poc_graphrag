@@ -417,15 +417,29 @@ def extract_single_pdf(pdf_path: Path) -> Dict:
     return extractor.extract_pdf(pdf_path)
 
 
-def extract_all_pdfs(data_dir: Path) -> List[Dict]:
+def extract_all_pdfs(
+    data_dir: Path,
+    existing_doc_ids: Optional[set] = None,
+    area: Optional[str] = None
+) -> List[Dict]:
     """
     Extract all PDFs from a directory.
 
     Args:
         data_dir: Directory containing PDF files
+        existing_doc_ids: Optional set of documento_ids already in Qdrant.
+                         PDFs with these IDs will be skipped to avoid duplicates.
+                         Should be in composite format: {area}_{filename}
+        area: Optional area code. If provided with existing_doc_ids, will generate
+              composite IDs for comparison: {area}_{filename}
 
     Returns:
-        List of extracted documents
+        List of extracted documents (only new ones if existing_doc_ids provided)
+
+    Example:
+        >>> # Skip documents already in Qdrant
+        >>> existing = {"sgr_acuerdo_03_2021", "sgr_decreto_1082_2015"}
+        >>> docs = extract_all_pdfs(Path("data/sgr"), existing_doc_ids=existing, area="sgr")
     """
     extractor = PDFExtractor()
     documents = []
@@ -433,6 +447,35 @@ def extract_all_pdfs(data_dir: Path) -> List[Dict]:
     pdf_files = list(data_dir.glob("*.pdf"))
     logger.info(f"Found {len(pdf_files)} PDF files in {data_dir}")
 
+    # Filter out PDFs that are already in Qdrant
+    if existing_doc_ids:
+        filtered_files = []
+        skipped_count = 0
+
+        for pdf_file in pdf_files:
+            # Generate documento_id from filename
+            base_doc_id = pdf_file.stem  # Filename without extension
+
+            # If area provided, create composite ID for comparison
+            # This matches the format used when documents are ingested
+            if area:
+                doc_id_to_check = f"{area}_{base_doc_id}"
+            else:
+                doc_id_to_check = base_doc_id
+
+            if doc_id_to_check in existing_doc_ids:
+                logger.info(f"  ⊘ Skipping {pdf_file.name} (already in Qdrant as '{doc_id_to_check}')")
+                skipped_count += 1
+            else:
+                filtered_files.append(pdf_file)
+
+        pdf_files = filtered_files
+
+        if skipped_count > 0:
+            logger.info(f"Skipped {skipped_count} existing documents")
+        logger.info(f"Will process {len(pdf_files)} new documents")
+
+    # Extract PDFs
     for pdf_file in pdf_files:
         try:
             doc = extractor.extract_pdf(pdf_file)

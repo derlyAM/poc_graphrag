@@ -67,7 +67,7 @@ class SourceChunk(BaseModel):
     citacion_corta: str = Field(..., description="Short citation reference")
     score: Optional[float] = Field(default=None, description="Relevance score")
     documento_id: str = Field(..., description="Source document ID")
-    nivel_jerarquico: int = Field(..., description="Hierarchical level")
+    nivel_jerarquico: Optional[int] = Field(default=0, description="Hierarchical level")
 
 
 class RAGMetrics(BaseModel):

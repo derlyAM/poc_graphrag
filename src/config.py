@@ -3,8 +3,9 @@ Configuration module for RAG system.
 Centralizes all configuration and environment variables.
 """
 import os
+import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
@@ -113,18 +114,133 @@ config = Config()
 
 
 # ============================================================================
-# ÁREA DE CONOCIMIENTO - Separación de dominios
+# ÁREA DE CONOCIMIENTO - Separación de dominios (Sistema Híbrido)
 # ============================================================================
 
-# Áreas válidas del sistema
-VALID_AREAS = {
-    "sgr": "Sistema General de Regalías",
-    "inteligencia_artificial": "Inteligencia Artificial",
-    "general": "General"
-}
+def _load_areas_from_json() -> Optional[Dict[str, str]]:
+    """
+    Load areas from config/areas.json file.
+
+    Returns:
+        Dict of areas if file exists and is valid, None otherwise
+    """
+    areas_file = BASE_DIR / "config" / "areas.json"
+
+    if not areas_file.exists():
+        return None
+
+    try:
+        with open(areas_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data.get("areas", {})
+    except Exception as e:
+        print(f"Warning: Could not load areas.json: {e}")
+        return None
+
+
+def _auto_detect_areas_from_qdrant() -> Dict[str, str]:
+    """
+    Auto-detect areas from Qdrant collection.
+
+    Scans the collection for unique 'area' values and generates
+    a display name for each.
+
+    Returns:
+        Dict of detected areas with auto-generated display names
+    """
+    try:
+        from qdrant_client import QdrantClient
+
+        # Connect to Qdrant
+        if os.getenv("QDRANT_USE_MEMORY", "false").lower() == "true":
+            return {}  # Can't auto-detect from memory mode
+
+        host = os.getenv("QDRANT_HOST", "localhost")
+        port = int(os.getenv("QDRANT_PORT", "6333"))
+        collection_name = os.getenv("QDRANT_COLLECTION_NAME", "normativa_sgr")
+
+        client = QdrantClient(host=host, port=port)
+
+        # Check if collection exists
+        collections = client.get_collections().collections
+        if not any(col.name == collection_name for col in collections):
+            return {}  # Collection doesn't exist yet
+
+        # Scroll through collection to find unique areas
+        areas_found = set()
+        offset = None
+
+        for _ in range(10):  # Limit to 10 batches (10k points max)
+            result = client.scroll(
+                collection_name=collection_name,
+                limit=1000,
+                offset=offset,
+                with_payload=["area"],
+                with_vectors=False
+            )
+
+            points, next_offset = result
+
+            if not points:
+                break
+
+            for point in points:
+                area = point.payload.get("area")
+                if area:
+                    areas_found.add(area)
+
+            if next_offset is None:
+                break
+
+            offset = next_offset
+
+        # Generate display names (Title Case from code)
+        areas_dict = {}
+        for area_code in sorted(areas_found):
+            # Convert "inteligencia_artificial" → "Inteligencia Artificial"
+            display_name = area_code.replace("_", " ").title()
+            areas_dict[area_code] = display_name
+
+        return areas_dict
+
+    except Exception as e:
+        print(f"Warning: Could not auto-detect areas from Qdrant: {e}")
+        return {}
+
+
+def _get_valid_areas() -> Dict[str, str]:
+    """
+    Get valid areas using hybrid approach:
+    1. Try to load from config/areas.json
+    2. If not found, auto-detect from Qdrant
+    3. If both fail, use hardcoded defaults
+
+    Returns:
+        Dict of valid areas
+    """
+    # Try JSON file first
+    areas = _load_areas_from_json()
+    if areas:
+        return areas
+
+    # Try auto-detection from Qdrant
+    areas = _auto_detect_areas_from_qdrant()
+    if areas:
+        return areas
+
+    # Fallback to hardcoded defaults
+    return {
+        "sgr": "Sistema General de Regalías",
+        "inteligencia_artificial": "Inteligencia Artificial",
+        "general": "General"
+    }
+
+
+# Load areas dynamically
+VALID_AREAS = _get_valid_areas()
 
 # Área por defecto
-DEFAULT_AREA = "sgr"
+DEFAULT_AREA = list(VALID_AREAS.keys())[0] if VALID_AREAS else "general"
 
 
 def validate_area(area: str) -> str:
@@ -140,9 +256,12 @@ def validate_area(area: str) -> str:
     Raises:
         ValueError: Si el área no es válida
     """
+    # Reload areas to catch new areas without restart
+    current_areas = _get_valid_areas()
+
     area_normalized = area.lower().strip()
-    if area_normalized not in VALID_AREAS:
-        valid_list = ", ".join(VALID_AREAS.keys())
+    if area_normalized not in current_areas:
+        valid_list = ", ".join(current_areas.keys())
         raise ValueError(
             f"Área '{area}' no válida. Áreas válidas: {valid_list}"
         )

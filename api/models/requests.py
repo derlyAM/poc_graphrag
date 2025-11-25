@@ -63,14 +63,16 @@ class RAGQueryRequest(BaseModel):
 
     @field_validator("area")
     @classmethod
-    def validate_area(cls, v: str) -> str:
-        """Validate area is one of the allowed values."""
-        valid_areas = ["sgr", "inteligencia_artificial", "general"]
-        if v not in valid_areas:
-            raise ValueError(
-                f"Invalid area. Must be one of: {', '.join(valid_areas)}"
-            )
-        return v
+    def validate_area_field(cls, v: str) -> str:
+        """Validate area is one of the allowed values (dynamic from config)."""
+        from src.config import validate_area
+
+        try:
+            # validate_area raises ValueError if invalid, otherwise returns normalized area
+            return validate_area(v)
+        except ValueError as e:
+            # Re-raise with same message
+            raise ValueError(str(e))
 
     @field_validator("question")
     @classmethod

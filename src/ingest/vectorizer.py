@@ -328,6 +328,88 @@ class Vectorizer:
             logger.error(f"Error getting collection info: {e}")
             return {}
 
+    def get_existing_document_ids(self, area: Optional[str] = None) -> set:
+        """
+        Get set of documento_ids already in Qdrant collection.
+
+        This is used to skip re-processing documents that are already indexed.
+
+        Args:
+            area: Optional area filter to only get documents from specific area
+
+        Returns:
+            Set of documento_id strings already in collection
+
+        Example:
+            >>> vectorizer = Vectorizer()
+            >>> existing = vectorizer.get_existing_document_ids(area="sgr")
+            >>> print(existing)
+            {'acuerdo_03_2021', 'decreto_1082_2015'}
+        """
+        logger.info(f"Checking existing documents in Qdrant collection '{self.collection_name}'...")
+
+        existing_doc_ids = set()
+        offset = None
+        batch_count = 0
+
+        try:
+            # Build filter if area specified
+            from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+            scroll_filter = None
+            if area:
+                scroll_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="area",
+                            match=MatchValue(value=area)
+                        )
+                    ]
+                )
+                logger.info(f"  Filtering by area: {area}")
+
+            # Scroll through all points
+            while True:
+                result = self.qdrant_client.scroll(
+                    collection_name=self.collection_name,
+                    limit=1000,  # Process 1000 points per batch
+                    offset=offset,
+                    scroll_filter=scroll_filter,
+                    with_payload=["documento_id"],  # Only fetch documento_id
+                    with_vectors=False  # Don't fetch vectors (faster)
+                )
+
+                points, next_offset = result
+
+                if not points:
+                    break
+
+                # Extract unique documento_ids
+                for point in points:
+                    doc_id = point.payload.get("documento_id")
+                    if doc_id:
+                        existing_doc_ids.add(doc_id)
+
+                batch_count += 1
+                logger.debug(f"  Processed batch {batch_count}: {len(points)} points")
+
+                # Check if more results
+                if next_offset is None:
+                    break
+
+                offset = next_offset
+
+            logger.info(f"Found {len(existing_doc_ids)} existing documents in collection")
+            if existing_doc_ids:
+                logger.debug(f"  Sample: {list(existing_doc_ids)[:5]}")
+
+            return existing_doc_ids
+
+        except Exception as e:
+            logger.warning(f"Error checking existing documents: {e}")
+            logger.warning("Will proceed without deduplication")
+            return set()  # Return empty set on error (will process all documents)
+
     def process_chunks(
         self, chunks: List[Dict], recreate_collection: bool = False
     ) -> None:

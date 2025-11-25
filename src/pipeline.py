@@ -73,22 +73,21 @@ class RAGPipeline:
         """
         start_time = time.time()
 
-        # Validate area (raises ValueError if invalid)
-        area = validate_area(area)
-        area_display = get_area_display_name(area)
-
-        logger.info(f"\n{'='*60}")
-        logger.info(f"ÁREA: {area_display} ({area})")
-        logger.info(f"QUERY: {question}")
-        logger.info(f"{'='*60}")
-
-        # Use config defaults if not specified
-        if top_k_retrieval is None:
-            top_k_retrieval = config.retrieval.top_k_retrieval
-        if top_k_rerank is None:
-            top_k_rerank = config.retrieval.top_k_rerank
-
         try:
+            # Validate area (raises ValueError if invalid)
+            area = validate_area(area)
+            area_display = get_area_display_name(area)
+
+            logger.info(f"\n{'='*60}")
+            logger.info(f"ÁREA: {area_display} ({area})")
+            logger.info(f"QUERY: {question}")
+            logger.info(f"{'='*60}")
+
+            # Use config defaults if not specified
+            if top_k_retrieval is None:
+                top_k_retrieval = config.retrieval.top_k_retrieval
+            if top_k_rerank is None:
+                top_k_rerank = config.retrieval.top_k_rerank
             # STEP 0A: Query Decomposition (if multihop enabled)
             decomposition = None
             if enable_multihop:

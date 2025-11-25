@@ -32,6 +32,15 @@ async def validation_exception_handler(
         message = error["msg"]
         error_messages.append(f"{field}: {message}")
 
+    # Convert errors to JSON-serializable format
+    serializable_errors = []
+    for error in errors:
+        serializable_errors.append({
+            "loc": [str(loc) for loc in error.get("loc", [])],
+            "msg": str(error.get("msg", "")),
+            "type": str(error.get("type", ""))
+        })
+
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
@@ -40,7 +49,7 @@ async def validation_exception_handler(
             "error_code": "VALIDATION_ERROR",
             "details": {
                 "errors": error_messages,
-                "raw_errors": errors
+                "raw_errors": serializable_errors
             }
         }
     )
