@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from loguru import logger
 
-from api.routers import health, rag, documents, ingestion
+from api.routers import health, rag, documents, ingestion, integration
 from api.middleware import setup_middleware
 from api.utils.error_handlers import (
     validation_exception_handler,
@@ -88,6 +88,7 @@ app.include_router(health.router)
 app.include_router(rag.router)
 app.include_router(documents.router)
 app.include_router(ingestion.router)
+app.include_router(integration.router)
 
 logger.info("FastAPI application configured")
 

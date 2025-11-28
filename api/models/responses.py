@@ -248,3 +248,49 @@ class IngestionStatusResponse(BaseModel):
         default=None,
         description="Estimated remaining time"
     )
+
+
+class StandardResponse(BaseModel):
+    """Standard response format for integration endpoints."""
+    
+    statusCode: int = Field(..., description="Código de estado HTTP")
+    message: str = Field(..., description="Mensaje de la respuesta")
+    data: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Datos de respuesta"
+    )
+
+
+class AreaData(BaseModel):
+    """Data model for area creation response."""
+    
+    area_code: str = Field(..., description="Código interno del área (nombre normalizado)")
+    name: str = Field(..., description="Nombre original del área")
+    description: str = Field(..., description="Descripción del área")
+    folder_path: str = Field(..., description="Ruta relativa de la carpeta creada")
+    created_at: str = Field(..., description="Fecha de creación en formato ISO 8601")
+
+
+class UploadDocumentData(BaseModel):
+    """Data model for document upload response."""
+    
+    filename: str = Field(..., description="Nombre del archivo guardado (normalizado)")
+    original_filename: str = Field(..., description="Nombre original del archivo subido")
+    area_code: str = Field(..., description="Código del área donde se guardó")
+    file_path: str = Field(..., description="Ruta relativa del archivo guardado")
+    file_size: int = Field(..., description="Tamaño del archivo en bytes")
+    uploaded_at: str = Field(..., description="Fecha de carga en formato ISO 8601")
+
+
+class IngestProcessData(BaseModel):
+    """Data model for ingestion process response."""
+    
+    process_id: str = Field(..., description="ID único del proceso de ingesta")
+    area_code: str = Field(..., description="Código del área siendo procesada")
+    pid: int = Field(..., description="Process ID del proceso en background")
+    status: str = Field(..., description="Estado del proceso (siempre 'running' al inicio)")
+    total_documents: int = Field(..., description="Número total de documentos PDF a procesar")
+    log_file: str = Field(..., description="Ruta relativa del archivo de log")
+    started_at: str = Field(..., description="Fecha de inicio en formato ISO 8601")
+    recreate: bool = Field(..., description="Si se recreó la colección")
+    force_reprocess: bool = Field(..., description="Si se fuerza el reprocesamiento")

@@ -3,7 +3,7 @@ Endpoints de integración con API externa.
 Gestiona áreas y documentos desde sistema externo.
 """
 import re
-import uuid
+import json
 import subprocess
 import sys
 import os
@@ -21,6 +21,69 @@ from src.config import BASE_DIR, config
 MAX_FILE_SIZE = 50 * 1024 * 1024
 
 router = APIRouter(prefix="/api/v1/integration", tags=["integration"])
+
+
+def add_area_to_config(area_code: str, area_name: str) -> None:
+    """
+    Agrega un área a config/areas.json.
+    
+    Si el archivo no existe, lo crea con la estructura correcta.
+    Si el área ya existe, no hace nada.
+    
+    Args:
+        area_code: Código del área (normalizado)
+        area_name: Nombre completo del área
+    
+    Raises:
+        Exception: Si hay error al escribir el archivo
+    """
+    areas_file = BASE_DIR / "config" / "areas.json"
+    areas_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Estructura por defecto del archivo
+    default_structure = {
+        "_comment": "Configuración de Áreas de Conocimiento",
+        "_instructions": [
+            "Para agregar una nueva área:",
+            "1. Agregar entrada: 'codigo_area': 'Nombre Completo del Área'",
+            "2. Guardar archivo (sin reiniciar servicios)",
+            "3. Usar: python scripts/01_ingest_pdfs.py --area codigo_area",
+            "",
+            "NOTA: Si este archivo no existe, el sistema auto-detectará áreas desde Qdrant automáticamente."
+        ],
+        "areas": {}
+    }
+    
+    # Cargar archivo existente o usar estructura por defecto
+    if areas_file.exists():
+        try:
+            with open(areas_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # Asegurar que existe la clave "areas"
+                if "areas" not in data:
+                    data["areas"] = {}
+        except Exception as e:
+            logger.warning(f"Error al leer areas.json, usando estructura por defecto: {e}")
+            data = default_structure
+    else:
+        data = default_structure
+    
+    # Agregar área si no existe
+    if area_code not in data["areas"]:
+        data["areas"][area_code] = area_name
+        logger.info(f"Agregando área '{area_code}' a config/areas.json")
+    else:
+        logger.info(f"Área '{area_code}' ya existe en config/areas.json, actualizando nombre")
+        data["areas"][area_code] = area_name
+    
+    # Guardar archivo
+    try:
+        with open(areas_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        logger.success(f"Archivo config/areas.json actualizado correctamente")
+    except Exception as e:
+        logger.error(f"Error al escribir areas.json: {e}")
+        raise
 
 
 def normalize_area_name(name: str) -> str:
@@ -81,10 +144,13 @@ def normalize_area_name(name: str) -> str:
     El sistema:
     1. Normaliza el nombre del área (minúsculas, guiones bajos, sin caracteres especiales)
     2. Crea la carpeta en `data/{nombre_normalizado}/`
-    3. Valida que el nombre no tenga espacios ni caracteres especiales (los normaliza si los tiene)
-    4. Retorna información del área creada
+    3. Agrega el área a `config/areas.json` para que esté disponible para ingesta
+    4. Valida que el nombre no tenga espacios ni caracteres especiales (los normaliza si los tiene)
+    5. Retorna información del área creada
     
     **Ejemplo**: "Desarrollo de Especies" → "desarrollo_de_especies"
+    
+    **Nota**: El área queda lista para ingesta inmediatamente después de crearse.
     """,
     responses={
         201: {
@@ -113,10 +179,11 @@ async def create_area(request: CreateAreaRequest) -> StandardResponse:
     El sistema RAG:
     1. Normaliza el nombre del área
     2. Crea la carpeta para almacenar documentos
-    3. Valida que no exista ya
+    3. Agrega el área a config/areas.json para que esté disponible para ingesta
+    4. Valida que no exista ya
     
     Args:
-        request: Request con name, description y companyId
+        request: Request con name y description
     
     Returns:
         StandardResponse con información del área creada
@@ -124,7 +191,7 @@ async def create_area(request: CreateAreaRequest) -> StandardResponse:
     Raises:
         HTTPException: Si hay error en la creación
     """
-    logger.info(f"Crear área solicitada: name={request.name}, companyId={request.companyId}")
+    logger.info(f"Crear área solicitada: name={request.name}")
     
     try:
         # Normalizar nombre del área
@@ -164,12 +231,20 @@ async def create_area(request: CreateAreaRequest) -> StandardResponse:
                 }
             )
         
+        # Agregar área a config/areas.json
+        try:
+            add_area_to_config(area_code, request.name)
+        except Exception as e:
+            logger.warning(f"Error al agregar área a config/areas.json: {e}")
+            # No fallar la creación si hay error al escribir el JSON
+            # El área ya está creada en el sistema de archivos
+            logger.warning("El área fue creada pero no se pudo actualizar config/areas.json. Puede agregarla manualmente.")
+        
         # Preparar datos de respuesta
         area_data = AreaData(
             area_code=area_code,
             name=request.name,
             description=request.description,
-            companyId=request.companyId,
             folder_path=str(folder_path.relative_to(BASE_DIR)),
             created_at=datetime.now().isoformat()
         )
@@ -223,8 +298,16 @@ async def create_area(request: CreateAreaRequest) -> StandardResponse:
     El sistema:
     1. Valida que el área exista
     2. Valida que el archivo sea un PDF válido
-    3. Guarda el PDF en la carpeta `data/{area_code}/`
-    4. Retorna información del documento guardado
+    3. Genera el nombre del archivo:
+       - Si se proporciona `document_name`: se normaliza ese nombre
+       - Si NO se proporciona: se usa el nombre del archivo normalizado
+         (minúsculas, sin caracteres especiales, espacios/guiones → guiones bajos)
+    4. Guarda el PDF en la carpeta `data/{area_code}/`
+    5. Retorna información del documento guardado
+    
+    **Ejemplo de normalización automática**:
+    - Archivo: "Mi Documento-2024.pdf" → Guardado como: "mi_documento_2024.pdf"
+    - Archivo: "Informe Final (v2).pdf" → Guardado como: "informe_final_v2.pdf"
     
     **Nota**: El documento se guarda pero NO se ingesta automáticamente.
     Para ingestar el documento, usar el endpoint de ingesta.
@@ -266,7 +349,12 @@ async def upload_document(
     Args:
         file: Archivo PDF a cargar
         area_code: Código del área (nombre normalizado, ej: "desarrollo_de_especies")
-        document_name: Nombre opcional para el documento (sin extensión .pdf)
+        document_name: Nombre opcional para el documento (sin extensión .pdf).
+                      Si no se proporciona, se usa el nombre del archivo normalizado:
+                      - Minúsculas
+                      - Sin caracteres especiales
+                      - Espacios y guiones convertidos a guiones bajos
+                      - Ejemplo: "Mi Documento-2024.pdf" → "mi_documento_2024.pdf"
     
     Returns:
         StandardResponse con información del documento guardado
@@ -346,14 +434,16 @@ async def upload_document(
         
         # Generar nombre del archivo
         if document_name:
-            # Normalizar nombre del documento (similar a área)
+            # Si se proporciona nombre, normalizarlo
             doc_name_normalized = normalize_area_name(document_name)
             filename = f"{doc_name_normalized}.pdf"
         else:
-            # Usar nombre original del archivo (normalizado)
-            original_name = Path(file.filename).stem
+            # Si no se proporciona nombre, usar el nombre del archivo normalizado
+            # Se quita la extensión y se normaliza: minúsculas, sin caracteres especiales, con guiones bajos
+            original_name = Path(file.filename).stem  # Nombre sin extensión
             doc_name_normalized = normalize_area_name(original_name)
             filename = f"{doc_name_normalized}.pdf"
+            logger.info(f"Nombre de documento no proporcionado, usando nombre normalizado del archivo: '{original_name}' → '{doc_name_normalized}'")
         
         # Ruta completa del archivo
         file_path = area_folder / filename
@@ -424,7 +514,7 @@ async def upload_document(
             }
         )
     
-        except Exception as e:
+    except Exception as e:
         # Error inesperado
         logger.error(f"Error inesperado al cargar documento: {e}")
         logger.exception("Traceback completo:")

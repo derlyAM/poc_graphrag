@@ -119,3 +119,19 @@ class DocumentIngestionMetadata(BaseModel):
                 f"Invalid document type. Must be one of: {', '.join(valid_types)}"
             )
         return v
+
+
+class CreateAreaRequest(BaseModel):
+    """Request model for creating a new area."""
+    
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Nombre del área"
+    )
+    description: str = Field(
+        ...,
+        max_length=1000,
+        description="Descripción del área"
+    )
