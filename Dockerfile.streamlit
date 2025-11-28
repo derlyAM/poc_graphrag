@@ -1,28 +1,63 @@
 # ==============================================================================
 # Dockerfile for RAG Streamlit UI
+# Multi-stage build for optimized image size and build caching
 # ==============================================================================
 
-FROM python:3.11-slim
+# ==============================================================================
+# Stage 1: Builder - Install dependencies and build packages
+# ==============================================================================
+FROM python:3.11-slim as builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for building
 RUN apt-get update && apt-get install -y \
     build-essential \
+    gcc \
+    g++ \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (better layer caching)
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Upgrade pip
+RUN pip install --upgrade pip setuptools wheel
+
+# Install PyTorch CPU-only first (lighter and faster, ~200MB vs ~900MB)
+# This prevents sentence-transformers from installing the full GPU version
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu \
+    torch torchvision torchaudio
+
+# Install all dependencies from requirements.txt
+# PyTorch CPU is already installed, so sentence-transformers will use it
+RUN pip install --no-cache-dir \
+    -r requirements.txt
+
+# ==============================================================================
+# Stage 2: Runtime - Minimal image with only runtime dependencies
+# ==============================================================================
+FROM python:3.11-slim as runtime
+
+WORKDIR /app
+
+# Install only runtime system dependencies (no build tools)
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Python packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY src/ ./src/
 COPY app/ ./app/
-COPY .env .env
+COPY config/ ./config/
+COPY scripts/ ./scripts/
+
+# Copy .env if it exists (optional, can be overridden by docker-compose)
+COPY .env* ./
 
 # Create necessary directories
 RUN mkdir -p logs storage/qdrant_local data
