@@ -17,6 +17,7 @@ from src.ingest.pdf_extractor import extract_all_pdfs
 from src.ingest.chunker import chunk_documents
 from src.ingest.vectorizer import vectorize_chunks
 from src.ingest.section_mapper import SectionMapper
+from src.shared_resources import get_shared_qdrant_client
 import time
 
 
@@ -92,8 +93,29 @@ def main():
         config.validate()
         logger.info("Configuration validated successfully")
 
-        # Use custom data dir if provided
-        data_dir = Path(args.data_dir) if args.data_dir else config.data_dir
+        # Use custom data dir if provided, otherwise use area-specific subdirectory
+        if args.data_dir:
+            data_dir = Path(args.data_dir)
+        else:
+            # Map area to subdirectory
+            area_dir_map = {
+                "sgr": "sgr",
+                "inteligencia_artificial": "data_topic_IA",
+                "general": "general",
+                "area_prueba": "area_prueba"
+            }
+
+            area_subdir = area_dir_map.get(area, area)
+            data_dir = config.data_dir / area_subdir
+
+            if not data_dir.exists():
+                logger.error(f"Area directory not found: {data_dir}")
+                logger.info(f"Available directories in {config.data_dir}:")
+                for d in config.data_dir.iterdir():
+                    if d.is_dir():
+                        logger.info(f"  - {d.name}")
+                return
+
         logger.info(f"Data directory: {data_dir}")
 
         # PHASE 0: Check existing documents (deduplication)
@@ -237,7 +259,15 @@ def main():
         if args.recreate:
             logger.warning("⚠️  RECREATE MODE: Se eliminará la colección existente")
 
-        vectorizer = vectorize_chunks(chunks, recreate_collection=args.recreate)
+        # Get shared Qdrant client to avoid concurrency issues
+        shared_qdrant = get_shared_qdrant_client()
+        logger.info("Using shared Qdrant client for concurrency support")
+
+        vectorizer = vectorize_chunks(
+            chunks,
+            recreate_collection=args.recreate,
+            qdrant_client=shared_qdrant
+        )
 
         logger.info("✓ Vectorization completed")
 

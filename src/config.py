@@ -38,8 +38,8 @@ class QdrantConfig(BaseModel):
     host: str = Field(default_factory=lambda: os.getenv("QDRANT_HOST", "localhost"))
     port: int = Field(default_factory=lambda: int(os.getenv("QDRANT_PORT", "6333")))
     collection_name: str = Field(default_factory=lambda: os.getenv("QDRANT_COLLECTION_NAME", "normativa_sgr"))
-    use_memory: bool = Field(default_factory=lambda: os.getenv("QDRANT_USE_MEMORY", "true").lower() == "true")
-    path: Optional[str] = Field(default_factory=lambda: os.getenv("QDRANT_PATH", "./storage/qdrant_local"))
+    use_memory: bool = Field(default_factory=lambda: os.getenv("QDRANT_USE_MEMORY", "false").lower() == "true")
+    path: Optional[str] = Field(default_factory=lambda: os.getenv("QDRANT_PATH") or None)  # Empty string = None
 
     @property
     def url(self) -> str:

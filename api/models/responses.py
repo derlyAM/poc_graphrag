@@ -248,22 +248,3 @@ class IngestionStatusResponse(BaseModel):
         default=None,
         description="Estimated remaining time"
     )
-
-
-class StandardResponse(BaseModel):
-    """Respuesta estándar con estructura statusCode, message, data."""
-    
-    statusCode: int = Field(..., description="Código de estado HTTP")
-    message: str = Field(..., description="Mensaje descriptivo")
-    data: Dict[str, Any] = Field(..., description="Datos de la respuesta")
-
-
-class AreaData(BaseModel):
-    """Datos del área creada."""
-    
-    area_code: str = Field(..., description="Código interno del área (normalizado)")
-    name: str = Field(..., description="Nombre original del área")
-    description: str = Field(..., description="Descripción del área")
-    companyId: str = Field(..., description="ID de la compañía")
-    folder_path: str = Field(..., description="Ruta de la carpeta creada")
-    created_at: str = Field(..., description="Fecha de creación (ISO format)")

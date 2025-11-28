@@ -107,8 +107,15 @@ async def process_document_ingestion(
         logger.info(f"[{task_id}] Phase 3: Vectorizing and uploading")
         task.update_phase(TaskPhase.VECTORIZING, 70)
 
-        # Initialize vectorizer (do NOT recreate collection)
-        vectorizer = Vectorizer(use_hybrid_search=False)
+        # Get shared Qdrant client to avoid concurrency issues
+        from src.shared_resources import get_shared_qdrant_client
+        shared_qdrant = get_shared_qdrant_client()
+
+        # Initialize vectorizer with shared client (do NOT recreate collection)
+        vectorizer = Vectorizer(
+            use_hybrid_search=False,
+            qdrant_client=shared_qdrant
+        )
 
         # Ensure collection exists
         vectorizer.create_collection(recreate=False)

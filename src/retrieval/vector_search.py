@@ -37,7 +37,12 @@ class VectorSearch:
         # Load BM25 encoder if hybrid search is enabled
         self.bm25_encoder = None
         if use_hybrid_search:
-            vocab_path = Path(config.qdrant.path) / "bm25_vocabulary.json"
+            # Use storage_dir if qdrant.path is None (Docker mode)
+            if config.qdrant.path:
+                vocab_path = Path(config.qdrant.path) / "bm25_vocabulary.json"
+            else:
+                vocab_path = config.storage_dir / "bm25_vocabulary.json"
+
             if vocab_path.exists():
                 self.bm25_encoder = BM25Encoder()
                 self.bm25_encoder.load_vocabulary(str(vocab_path))

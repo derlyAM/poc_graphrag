@@ -22,12 +22,17 @@ from src.ingest.bm25_encoder import BM25Encoder
 class Vectorizer:
     """Generates embeddings and manages Qdrant collection."""
 
-    def __init__(self, use_hybrid_search: bool = True):
+    def __init__(
+        self,
+        use_hybrid_search: bool = True,
+        qdrant_client: Optional[QdrantClient] = None
+    ):
         """
         Initialize vectorizer with OpenAI and Qdrant clients.
 
         Args:
             use_hybrid_search: If True, enable hybrid search with BM25 sparse vectors
+            qdrant_client: Optional pre-initialized Qdrant client (recommended for concurrency)
         """
         # Initialize OpenAI client with increased timeout
         self.openai_client = openai.OpenAI(
@@ -44,13 +49,19 @@ class Vectorizer:
         self.bm25_encoder = BM25Encoder() if use_hybrid_search else None
         logger.info(f"Hybrid search (BM25): {'ENABLED' if use_hybrid_search else 'DISABLED'}")
 
-        # Initialize Qdrant client
-        if config.qdrant.use_memory:
+        # Initialize Qdrant client (use provided or create new)
+        if qdrant_client:
+            logger.info("Using provided Qdrant client (shared instance)")
+            self.qdrant_client = qdrant_client
+        elif config.qdrant.use_memory:
             logger.info("Using Qdrant in-memory mode")
             self.qdrant_client = QdrantClient(":memory:")
         elif config.qdrant.path:
             # Use local persistent storage
-            logger.info(f"Using Qdrant local storage at {config.qdrant.path}")
+            logger.warning(
+                f"Creating new Qdrant client for local storage at {config.qdrant.path}. "
+                "Consider using get_shared_qdrant_client() to avoid concurrency issues."
+            )
             Path(config.qdrant.path).mkdir(parents=True, exist_ok=True)
             self.qdrant_client = QdrantClient(path=config.qdrant.path)
         else:
@@ -410,6 +421,42 @@ class Vectorizer:
             logger.warning("Will proceed without deduplication")
             return set()  # Return empty set on error (will process all documents)
 
+    def vectorize_and_upload(self, chunks: List[Dict]) -> None:
+        """
+        Generate embeddings and upload to Qdrant (without recreating collection).
+
+        This is used when adding new documents to an existing collection.
+
+        Args:
+            chunks: List of chunks to vectorize and upload
+        """
+        logger.info(f"Vectorizing and uploading {len(chunks)} chunks")
+
+        # Step 1: Generate dense embeddings (OpenAI)
+        texts = [chunk["texto"] for chunk in chunks]
+        embeddings = self.generate_embeddings(texts)
+
+        # Step 2: Generate sparse embeddings (BM25) if enabled
+        sparse_vectors = None
+        if self.use_hybrid_search:
+            logger.info("Training BM25 encoder on corpus")
+            self.bm25_encoder.fit(texts)
+
+            logger.info("Generating BM25 sparse vectors")
+            sparse_vectors = self.bm25_encoder.encode_documents(texts)
+
+            # Save BM25 vocabulary for later use
+            if config.qdrant.path:
+                vocab_path = Path(config.qdrant.path) / "bm25_vocabulary.json"
+            else:
+                vocab_path = config.storage_dir / "bm25_vocabulary.json"
+            self.bm25_encoder.save_vocabulary(str(vocab_path))
+
+        # Step 3: Upload to Qdrant
+        self.upload_to_qdrant(chunks, embeddings, sparse_vectors)
+
+        logger.info(f"Vectorization complete. Total cost: ${self.total_cost:.6f}")
+
     def process_chunks(
         self, chunks: List[Dict], recreate_collection: bool = False
     ) -> None:
@@ -425,36 +472,19 @@ class Vectorizer:
         # Step 1: Create collection
         self.create_collection(recreate=recreate_collection)
 
-        # Step 2: Generate dense embeddings (OpenAI)
-        texts = [chunk["texto"] for chunk in chunks]
-        embeddings = self.generate_embeddings(texts)
+        # Step 2: Vectorize and upload
+        self.vectorize_and_upload(chunks)
 
-        # Step 3: Generate sparse embeddings (BM25) if enabled
-        sparse_vectors = None
-        if self.use_hybrid_search:
-            logger.info("Training BM25 encoder on corpus")
-            self.bm25_encoder.fit(texts)
-
-            logger.info("Generating BM25 sparse vectors")
-            sparse_vectors = self.bm25_encoder.encode_documents(texts)
-
-            # Save BM25 vocabulary for later use
-            vocab_path = Path(config.qdrant.path) / "bm25_vocabulary.json"
-            self.bm25_encoder.save_vocabulary(str(vocab_path))
-
-        # Step 4: Upload to Qdrant
-        self.upload_to_qdrant(chunks, embeddings, sparse_vectors)
-
-        # Step 5: Show stats
+        # Step 3: Show stats
         info = self.get_collection_info()
         logger.info(f"Collection stats: {info}")
-        logger.info(f"Total embedding cost: ${self.total_cost:.6f}")
 
 
 def vectorize_chunks(
     chunks: List[Dict],
     recreate_collection: bool = False,
-    use_hybrid_search: bool = True
+    use_hybrid_search: bool = True,
+    qdrant_client: Optional[QdrantClient] = None
 ) -> Vectorizer:
     """
     Convenience function to vectorize chunks.
@@ -463,10 +493,14 @@ def vectorize_chunks(
         chunks: List of chunks
         recreate_collection: Whether to recreate collection
         use_hybrid_search: Whether to use hybrid search (dense + BM25 sparse)
+        qdrant_client: Optional pre-initialized Qdrant client (recommended)
 
     Returns:
         Vectorizer instance with stats
     """
-    vectorizer = Vectorizer(use_hybrid_search=use_hybrid_search)
+    vectorizer = Vectorizer(
+        use_hybrid_search=use_hybrid_search,
+        qdrant_client=qdrant_client
+    )
     vectorizer.process_chunks(chunks, recreate_collection=recreate_collection)
     return vectorizer

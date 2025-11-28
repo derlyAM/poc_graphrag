@@ -1,7 +1,9 @@
 # === CORE DEPENDENCIES ===
 pymupdf4llm
+llama-index
+llama-index-vector-stores-qdrant
 openai
-qdrant-client==1.15.1
+qdrant-client
 
 # === MACHINE LEARNING ===
 sentence-transformers
