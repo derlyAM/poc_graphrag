@@ -21,11 +21,21 @@ from src.config import config, validate_area, get_area_display_name
 class RAGPipeline:
     """Complete RAG pipeline for document Q&A."""
 
-    def __init__(self):
+    def __init__(self, qdrant_client=None):
         """Initialize pipeline components."""
         logger.info("Initializing RAG Pipeline")
 
-        self.vector_search = VectorSearch()
+        # Use shared Qdrant client if available
+        if qdrant_client is None:
+            from src.shared_resources import get_shared_qdrant_client
+            try:
+                qdrant_client = get_shared_qdrant_client()
+                logger.info("Using shared Qdrant client")
+            except Exception as e:
+                logger.warning(f"Could not get shared Qdrant client: {e}. Creating new client.")
+                qdrant_client = None
+
+        self.vector_search = VectorSearch(qdrant_client=qdrant_client)
         self.reranker = Reranker()
         self.query_enhancer = QueryEnhancer()
         self.query_decomposer = QueryDecomposer()

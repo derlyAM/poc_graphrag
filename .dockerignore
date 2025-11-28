@@ -66,8 +66,8 @@ Dockerfile*
 # Environment files (will be provided via env vars)
 .env.example
 
-# Scripts (not needed in containers)
-scripts/
+# Scripts (needed for ingestion endpoint)
+# scripts/
 
 # Misc
 .coverage

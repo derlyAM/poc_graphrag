@@ -82,7 +82,9 @@ class SharedPipelineManager:
         if self._pipeline is None:
             logger.info("SharedPipelineManager: Initializing RAGPipeline (first access)")
             from src.pipeline import RAGPipeline
-            self._pipeline = RAGPipeline()
+            # Get shared Qdrant client first to pass to pipeline
+            qdrant_client = self.get_qdrant_client()
+            self._pipeline = RAGPipeline(qdrant_client=qdrant_client)
             logger.success("SharedPipelineManager: RAGPipeline initialized and cached")
         else:
             logger.debug("SharedPipelineManager: Returning existing RAGPipeline instance")

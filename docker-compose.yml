@@ -37,13 +37,14 @@ services:
     volumes:
       - ./storage:/app/storage  # Shared storage for Qdrant data
       - ./logs:/app/logs        # Logs directory
-      - ./data:/app/data:ro     # Data directory (read-only)
+      - ./data:/app/data        # Data directory (read-write for creating areas and uploading documents)
     environment:
       # Qdrant Configuration (override for Docker)
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-normativa_sgr}
       - QDRANT_USE_MEMORY=false
+      - QDRANT_PATH=  # Empty = use Docker server (localhost:6333)
 
       # OpenAI API
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -99,13 +100,14 @@ services:
     volumes:
       - ./storage:/app/storage  # Shared storage for Qdrant data
       - ./logs:/app/logs        # Logs directory
-      - ./data:/app/data:ro     # Data directory (read-only)
+      - ./data:/app/data        # Data directory (read-write for creating areas and uploading documents)
     environment:
       # Qdrant Configuration (override for Docker)
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-normativa_sgr}
       - QDRANT_USE_MEMORY=false
+      - QDRANT_PATH=  # Empty = use Docker server (localhost:6333)
 
       # OpenAI API
       - OPENAI_API_KEY=${OPENAI_API_KEY}

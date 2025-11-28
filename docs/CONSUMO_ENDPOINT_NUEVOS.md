@@ -1,7 +1,12 @@
 # Consumo de Endpoints Nuevos - Integración con API Externa
 
-**Fecha**: 2025-01-15  
-**Versión**: 1.0.0
+**Fecha**: 2025-11-28  
+**Versión**: 1.1.0
+
+**Cambios en esta versión**:
+- ✅ Eliminado campo `companyId` del endpoint de crear área
+- ✅ Agregado registro automático de áreas en `config/areas.json`
+- ✅ Mejorada normalización automática del nombre de documentos
 
 ---
 
@@ -22,7 +27,7 @@
 
 **Nombre del Endpoint**: `POST /api/v1/integration/areas`
 
-**Descripción**: Crea una nueva área de conocimiento en el sistema RAG. El sistema normaliza automáticamente el nombre del área y crea la carpeta correspondiente para almacenar documentos.
+**Descripción**: Crea una nueva área de conocimiento en el sistema RAG. El sistema normaliza automáticamente el nombre del área, crea la carpeta correspondiente para almacenar documentos y la agrega automáticamente a `config/areas.json` para que esté disponible para ingesta inmediatamente.
 
 **Tag en Swagger**: `integration`
 
@@ -45,18 +50,16 @@ Content-Type: application/json
 ```json
 {
   "name": "string",
-  "description": "string",
-  "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  "description": "string"
 }
 ```
 
 #### Parámetros
 
-| Campo         | Tipo          | Requerido | Descripción                                      | Ejemplo                                             |
-| ------------- | ------------- | --------- | ------------------------------------------------ | --------------------------------------------------- |
-| `name`        | string        | Sí        | Nombre del área (se normalizará automáticamente) | "Desarrollo de Especies"                            |
-| `description` | string        | Sí        | Descripción del área                             | "Área de conocimiento sobre desarrollo de especies" |
-| `companyId`   | string (UUID) | Sí        | ID de la compañía (debe ser un UUID válido)      | "3fa85f64-5717-4562-b3fc-2c963f66afa6"              |
+| Campo         | Tipo   | Requerido | Descripción                                      | Ejemplo                                             |
+| ------------- | ------ | --------- | ------------------------------------------------ | --------------------------------------------------- |
+| `name`        | string | Sí        | Nombre del área (se normalizará automáticamente) | "Desarrollo de Especies"                            |
+| `description` | string | Sí        | Descripción del área                             | "Área de conocimiento sobre desarrollo de especies" |
 
 #### Validaciones
 
@@ -69,10 +72,6 @@ Content-Type: application/json
 - `description`:
 
   - Máximo 1000 caracteres
-
-- `companyId`:
-  - Debe ser un UUID válido (formato: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
-  - Mínimo 36 caracteres, máximo 36 caracteres
 
 #### Normalización del Nombre
 
@@ -90,6 +89,16 @@ El sistema normaliza automáticamente el nombre del área:
 - `"Sistema General de Regalías"` → `"sistema_general_de_regalias"`
 - `"Inteligencia Artificial"` → `"inteligencia_artificial"`
 - `"Área-Técnica"` → `"area_tecnica"`
+
+#### Registro Automático en config/areas.json
+
+Cuando se crea un área, el sistema automáticamente:
+
+1. **Agrega el área a `config/areas.json`**: El área queda registrada en el archivo de configuración
+2. **Disponible para ingesta**: El área está lista para ingesta inmediatamente después de crearse
+3. **Sin reinicio necesario**: No es necesario reiniciar el servidor para que el área esté disponible
+
+**Nota**: Si el archivo `config/areas.json` no existe, se crea automáticamente con la estructura correcta.
 
 ---
 
@@ -121,7 +130,6 @@ Todas las respuestas siguen esta estructura:
     "area_code": "desarrollo_de_especies",
     "name": "Desarrollo de Especies",
     "description": "Área de conocimiento sobre desarrollo de especies",
-    "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "folder_path": "data/desarrollo_de_especies",
     "created_at": "2025-01-15T10:30:45.123456"
   }
@@ -135,7 +143,6 @@ Todas las respuestas siguen esta estructura:
 | `area_code`   | string | Código interno del área (nombre normalizado) |
 | `name`        | string | Nombre original del área                     |
 | `description` | string | Descripción del área                         |
-| `companyId`   | string | ID de la compañía                            |
 | `folder_path` | string | Ruta relativa de la carpeta creada           |
 | `created_at`  | string | Fecha de creación en formato ISO 8601        |
 
@@ -146,7 +153,6 @@ Todas las respuestas siguen esta estructura:
 **Causas posibles**:
 
 - `name` está vacío
-- `companyId` no es un UUID válido
 - Error en la normalización del nombre
 
 **Body**:
@@ -204,6 +210,8 @@ Todas las respuestas siguen esta estructura:
 
 **Descripción**: Carga un documento PDF en el área especificada. El documento se guarda en la carpeta del área pero NO se ingesta automáticamente.
 
+**Normalización automática del nombre**: Si no se proporciona `document_name`, el sistema usa automáticamente el nombre del archivo normalizado (minúsculas, sin caracteres especiales, espacios/guiones convertidos a guiones bajos).
+
 **Tag en Swagger**: `integration`
 
 **URL Completa**: `http://localhost:8000/api/v1/integration/documents`
@@ -241,7 +249,13 @@ Content-Type: multipart/form-data
 
 - `document_name` (opcional):
   - Si se proporciona, se normaliza automáticamente
-  - Si no se proporciona, se usa el nombre del archivo original (normalizado)
+  - Si **NO** se proporciona, se usa el nombre del archivo original normalizado:
+    - Se quita la extensión `.pdf`
+    - Se convierte a minúsculas
+    - Se quitan caracteres especiales
+    - Se reemplazan espacios y guiones con guiones bajos
+    - Se quitan acentos
+    - **Ejemplo**: `"Mi Documento-2024.pdf"` → `"mi_documento_2024.pdf"`
 
 ---
 
@@ -528,8 +542,7 @@ curl -X POST "http://localhost:8000/api/v1/integration/areas" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Desarrollo de Especies",
-    "description": "Área de conocimiento sobre desarrollo de especies",
-    "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "description": "Área de conocimiento sobre desarrollo de especies"
   }'
 ```
 
@@ -543,7 +556,6 @@ curl -X POST "http://localhost:8000/api/v1/integration/areas" \
     "area_code": "desarrollo_de_especies",
     "name": "Desarrollo de Especies",
     "description": "Área de conocimiento sobre desarrollo de especies",
-    "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "folder_path": "data/desarrollo_de_especies",
     "created_at": "2025-01-15T10:30:45.123456"
   }
@@ -559,8 +571,7 @@ curl -X POST "http://localhost:8000/api/v1/integration/areas" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Sistema General de Regalías",
-    "description": "Área de conocimiento sobre regalías y normativa",
-    "companyId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    "description": "Área de conocimiento sobre regalías y normativa"
   }' | jq
 ```
 
@@ -574,7 +585,6 @@ curl -X POST "http://localhost:8000/api/v1/integration/areas" \
     "area_code": "sistema_general_de_regalias",
     "name": "Sistema General de Regalías",
     "description": "Área de conocimiento sobre regalías y normativa",
-    "companyId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "folder_path": "data/sistema_general_de_regalias",
     "created_at": "2025-01-15T10:35:12.789012"
   }
@@ -592,8 +602,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8000/api/v1/int
   -H "Content-Type: application/json" \
   -d '{
     "name": "Inteligencia Artificial",
-    "description": "Documentos sobre IA",
-    "companyId": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+    "description": "Documentos sobre IA"
   }')
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -621,8 +630,7 @@ url = "http://localhost:8000/api/v1/integration/areas"
 
 payload = {
     "name": "Desarrollo de Especies",
-    "description": "Área de conocimiento sobre desarrollo de especies",
-    "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "description": "Área de conocimiento sobre desarrollo de especies"
 }
 
 headers = {
@@ -681,8 +689,7 @@ class RAGIntegrationClient:
     def create_area(
         self,
         name: str,
-        description: str,
-        company_id: str
+        description: str
     ) -> Dict:
         """
         Crear área en el sistema RAG.
@@ -690,7 +697,6 @@ class RAGIntegrationClient:
         Args:
             name: Nombre del área
             description: Descripción del área
-            company_id: ID de la compañía (UUID)
 
         Returns:
             Dict con información del área creada
@@ -702,8 +708,7 @@ class RAGIntegrationClient:
 
         payload = {
             "name": name,
-            "description": description,
-            "companyId": company_id
+            "description": description
         }
 
         response = self.session.post(url, json=payload)
@@ -719,8 +724,7 @@ if __name__ == "__main__":
     try:
         result = client.create_area(
             name="Desarrollo de Especies",
-            description="Área de conocimiento sobre desarrollo de especies",
-            company_id="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+            description="Área de conocimiento sobre desarrollo de especies"
         )
 
         print(f"✅ {result['message']}")
@@ -737,13 +741,12 @@ if __name__ == "__main__":
 ### Ejemplo 6: JavaScript/TypeScript (fetch)
 
 ```javascript
-async function createArea(name, description, companyId) {
+async function createArea(name, description) {
   const url = "http://localhost:8000/api/v1/integration/areas";
 
   const payload = {
     name: name,
     description: description,
-    companyId: companyId,
   };
 
   try {
@@ -775,8 +778,7 @@ async function createArea(name, description, companyId) {
 // Uso
 createArea(
   "Desarrollo de Especies",
-  "Área de conocimiento sobre desarrollo de especies",
-  "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  "Área de conocimiento sobre desarrollo de especies"
 );
 ```
 
@@ -788,7 +790,6 @@ createArea(
 interface CreateAreaRequest {
   name: string;
   description: string;
-  companyId: string;
 }
 
 interface StandardResponse<T> {
@@ -801,7 +802,6 @@ interface AreaData {
   area_code: string;
   name: string;
   description: string;
-  companyId: string;
   folder_path: string;
   created_at: string;
 }
@@ -815,8 +815,7 @@ class RAGIntegrationClient {
 
   async createArea(
     name: string,
-    description: string,
-    companyId: string
+    description: string
   ): Promise<StandardResponse<AreaData>> {
     const url = `${this.baseUrl}/api/v1/integration/areas`;
 
@@ -828,7 +827,6 @@ class RAGIntegrationClient {
       body: JSON.stringify({
         name,
         description,
-        companyId,
       }),
     });
 
@@ -848,8 +846,7 @@ const client = new RAGIntegrationClient("http://localhost:8000");
 client
   .createArea(
     "Desarrollo de Especies",
-    "Área de conocimiento sobre desarrollo de especies",
-    "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "Área de conocimiento sobre desarrollo de especies"
   )
   .then((result) => {
     console.log(`✅ ${result.message}`);
@@ -1073,8 +1070,7 @@ uploadDocument(file, "desarrollo_de_especies", "acuerdo_03_2021");
    ```json
    {
      "name": "Desarrollo de Especies",
-     "description": "Área de conocimiento sobre desarrollo de especies",
-     "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+     "description": "Área de conocimiento sobre desarrollo de especies"
    }
    ```
 
@@ -1286,7 +1282,7 @@ ingestArea("desarrollo_de_especies", false, false);
 | ----------- | ------------------------ | ------------------------------------------------------- |
 | `201`       | Created                  | Área/Documento creado exitosamente                      |
 | `202`       | Accepted                 | Proceso de ingesta iniciado (asíncrono)                 |
-| `400`       | Bad Request              | Error de validación (nombre vacío, UUID inválido, etc.) |
+| `400`       | Bad Request              | Error de validación (nombre vacío, etc.) |
 | `404`       | Not Found                | Área no encontrada                                      |
 | `409`       | Conflict                 | El área/documento ya existe                             |
 | `413`       | Request Entity Too Large | Archivo demasiado grande (solo para cargar documentos)  |
@@ -1303,8 +1299,7 @@ ingestArea("desarrollo_de_especies", false, false);
 ```json
 {
   "name": "",
-  "description": "Descripción",
-  "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  "description": "Descripción"
 }
 ```
 
@@ -1320,28 +1315,6 @@ ingestArea("desarrollo_de_especies", false, false);
 
 ---
 
-### Caso 2: UUID Inválido
-
-**Request**:
-
-```json
-{
-  "name": "Desarrollo de Especies",
-  "description": "Descripción",
-  "companyId": "invalid-uuid"
-}
-```
-
-**Response** (400):
-
-```json
-{
-  "statusCode": 400,
-  "message": "companyId debe ser un UUID válido",
-  "data": {}
-}
-```
-
 ---
 
 ### Caso 3: Área Ya Existe (Crear Área)
@@ -1351,8 +1324,7 @@ ingestArea("desarrollo_de_especies", false, false);
 ```json
 {
   "name": "Desarrollo de Especies",
-  "description": "Descripción",
-  "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  "description": "Descripción"
 }
 ```
 
@@ -1530,8 +1502,7 @@ curl -X POST "http://localhost:8000/api/v1/integration/documents" \
 ```json
 {
   "name": "Desarrollo de Especies",
-  "description": "Descripción",
-  "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  "description": "Descripción"
 }
 ```
 
@@ -1563,7 +1534,6 @@ El endpoint está disponible en la documentación interactiva de Swagger:
 5. Completa los campos:
    - `name`: "Desarrollo de Especies"
    - `description`: "Área de conocimiento sobre desarrollo de especies"
-   - `companyId`: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 6. Haz clic en **"Execute"**
 7. Verás la respuesta en la sección **"Responses"**
 
@@ -1591,8 +1561,14 @@ data/
 
 **Nota**: Los nombres de archivo se normalizan automáticamente:
 
+- Si se proporciona `document_name`: se normaliza ese nombre
+- Si **NO** se proporciona `document_name`: se usa el nombre del archivo original normalizado
+
+**Ejemplos de normalización automática**:
 - `"Acuerdo 03-2021.pdf"` → `"acuerdo_03_2021.pdf"`
 - `"Decreto 1082/2015.pdf"` → `"decreto_1082_2015.pdf"`
+- `"Mi Documento-2024.pdf"` → `"mi_documento_2024.pdf"`
+- `"Informe Final (v2).pdf"` → `"informe_final_v2.pdf"`
 
 La ruta completa se retorna en el campo `file_path` de la respuesta.
 
@@ -1604,7 +1580,6 @@ La ruta completa se retorna en el campo `file_path` de la respuesta.
 
 - [ ] Verificar que el servidor esté corriendo en `http://localhost:8000`
 - [ ] Verificar que `name` no esté vacío
-- [ ] Verificar que `companyId` sea un UUID válido
 - [ ] Verificar que el área no exista ya (si es necesario)
 - [ ] Manejar errores HTTP apropiadamente
 - [ ] Guardar `area_code` y `folder_path` para uso futuro
@@ -1639,8 +1614,7 @@ curl -X POST "http://localhost:8000/api/v1/integration/areas" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Desarrollo de Especies",
-    "description": "Área de conocimiento sobre desarrollo de especies",
-    "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "description": "Área de conocimiento sobre desarrollo de especies"
   }'
 ```
 
@@ -1725,8 +1699,7 @@ curl -X POST "http://localhost:8000/api/v1/integration/areas" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Desarrollo de Especies",
-    "description": "Área de conocimiento sobre desarrollo de especies",
-    "companyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "description": "Área de conocimiento sobre desarrollo de especies"
   }'
 ```
 
@@ -1772,5 +1745,36 @@ curl -X POST "http://localhost:8000/api/v1/integration/documents" \
 ---
 
 **Autor**: Sistema de Documentación  
-**Última Actualización**: 2025-01-15  
-**Versión**: 1.0.0
+**Última Actualización**: 2025-11-28  
+**Versión**: 1.1.0
+
+---
+
+## 📝 Notas de Versión
+
+### Versión 1.1.0 (2025-11-28)
+
+#### Cambios Realizados
+
+1. **Eliminado campo `companyId`**:
+   - El endpoint `POST /api/v1/integration/areas` ya no requiere el campo `companyId`
+   - El request ahora solo requiere `name` y `description`
+   - La respuesta ya no incluye `companyId`
+
+2. **Registro automático en `config/areas.json`**:
+   - Al crear un área, se agrega automáticamente a `config/areas.json`
+   - El área queda disponible para ingesta inmediatamente después de crearse
+   - No es necesario reiniciar el servidor
+   - Si el archivo no existe, se crea automáticamente
+
+3. **Normalización automática mejorada del nombre de documentos**:
+   - Si no se proporciona `document_name`, se usa el nombre del archivo normalizado
+   - Normalización: minúsculas, sin caracteres especiales, espacios/guiones → guiones bajos
+   - Ejemplos documentados en la sección de carga de documentos
+
+#### Mejoras
+
+- Documentación actualizada con todos los ejemplos sin `companyId`
+- Ejemplos de código actualizados (Python, JavaScript, cURL)
+- Información sobre registro automático en `config/areas.json`
+- Ejemplos de normalización automática de nombres de documentos

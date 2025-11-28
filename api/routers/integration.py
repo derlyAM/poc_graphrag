@@ -201,9 +201,24 @@ async def create_area(request: CreateAreaRequest) -> StandardResponse:
         # Crear ruta de carpeta
         folder_path = BASE_DIR / "data" / area_code
         
+        # Verificar si el área ya está en areas.json
+        areas_file = BASE_DIR / "config" / "areas.json"
+        area_exists_in_json = False
+        if areas_file.exists():
+            try:
+                with open(areas_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if "areas" in data and area_code in data["areas"]:
+                        area_exists_in_json = True
+            except Exception as e:
+                logger.warning(f"Error al leer areas.json: {e}")
+        
         # Verificar si la carpeta ya existe
-        if folder_path.exists() and folder_path.is_dir():
-            logger.warning(f"Área ya existe: {area_code}")
+        folder_exists = folder_path.exists() and folder_path.is_dir()
+        
+        # Si tanto la carpeta como el JSON tienen el área, es un conflicto real
+        if folder_exists and area_exists_in_json:
+            logger.warning(f"Área ya existe completamente: {area_code}")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
@@ -216,29 +231,46 @@ async def create_area(request: CreateAreaRequest) -> StandardResponse:
                 }
             )
         
-        # Crear carpeta
-        try:
-            folder_path.mkdir(parents=True, exist_ok=True)
-            logger.success(f"Carpeta creada: {folder_path}")
-        except Exception as e:
-            logger.error(f"Error al crear carpeta: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail={
-                    "statusCode": 500,
-                    "message": f"Error al crear carpeta: {str(e)}",
-                    "data": {}
-                }
-            )
-        
-        # Agregar área a config/areas.json
-        try:
-            add_area_to_config(area_code, request.name)
-        except Exception as e:
-            logger.warning(f"Error al agregar área a config/areas.json: {e}")
-            # No fallar la creación si hay error al escribir el JSON
-            # El área ya está creada en el sistema de archivos
-            logger.warning("El área fue creada pero no se pudo actualizar config/areas.json. Puede agregarla manualmente.")
+        # Si la carpeta existe pero no está en JSON, agregarla al JSON
+        if folder_exists and not area_exists_in_json:
+            logger.info(f"Área existe en sistema de archivos pero no en areas.json. Agregando a areas.json...")
+            try:
+                add_area_to_config(area_code, request.name)
+                logger.success(f"Área '{area_code}' agregada a areas.json")
+            except Exception as e:
+                logger.error(f"Error al agregar área a config/areas.json: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "statusCode": 500,
+                        "message": f"Error al actualizar config/areas.json: {str(e)}",
+                        "data": {}
+                    }
+                )
+        elif not folder_exists:
+            # Crear carpeta si no existe
+            try:
+                folder_path.mkdir(parents=True, exist_ok=True)
+                logger.success(f"Carpeta creada: {folder_path}")
+            except Exception as e:
+                logger.error(f"Error al crear carpeta: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "statusCode": 500,
+                        "message": f"Error al crear carpeta: {str(e)}",
+                        "data": {}
+                    }
+                )
+            
+            # Agregar área a config/areas.json
+            try:
+                add_area_to_config(area_code, request.name)
+            except Exception as e:
+                logger.warning(f"Error al agregar área a config/areas.json: {e}")
+                # No fallar la creación si hay error al escribir el JSON
+                # El área ya está creada en el sistema de archivos
+                logger.warning("El área fue creada pero no se pudo actualizar config/areas.json. Puede agregarla manualmente.")
         
         # Preparar datos de respuesta
         area_data = AreaData(
@@ -680,13 +712,21 @@ async def ingest_area_documents(
         try:
             # Abrir archivo de log
             with open(log_file, "w", encoding="utf-8") as log_f:
+                # Preparar variables de entorno para el subprocess
+                # Asegurar que use Qdrant Server en Docker (no local storage)
+                env = os.environ.copy()
+                env["QDRANT_HOST"] = os.getenv("QDRANT_HOST", "qdrant")
+                env["QDRANT_PORT"] = os.getenv("QDRANT_PORT", "6333")
+                env["QDRANT_USE_MEMORY"] = os.getenv("QDRANT_USE_MEMORY", "false")
+                env["QDRANT_PATH"] = ""  # Forzar uso de Qdrant Server (cadena vacía = None)
+                
                 # Iniciar proceso en background
                 process = subprocess.Popen(
                     cmd,
                     stdout=log_f,
                     stderr=subprocess.STDOUT,  # Redirigir stderr a stdout
                     cwd=str(BASE_DIR),
-                    env=os.environ.copy()
+                    env=env
                 )
             
             logger.success(f"Proceso de ingesta iniciado: PID={process.pid}, ID={process_id}")

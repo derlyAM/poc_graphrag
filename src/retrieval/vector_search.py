@@ -916,9 +916,15 @@ class VectorSearch:
         try:
             collection_info = self.qdrant_client.get_collection(self.collection_name)
 
+            # In Qdrant 1.15.1, vectors_count doesn't exist, use points_count instead
+            # points_count represents the number of vectors in the collection
+            vectors_count = getattr(collection_info, 'vectors_count', None)
+            if vectors_count is None:
+                vectors_count = collection_info.points_count
+
             return {
                 "name": self.collection_name,
-                "vectors_count": collection_info.vectors_count,
+                "vectors_count": vectors_count,
                 "points_count": collection_info.points_count,
                 "status": collection_info.status,
             }

@@ -3,7 +3,7 @@ pymupdf4llm
 llama-index
 llama-index-vector-stores-qdrant
 openai
-qdrant-client
+qdrant-client==1.15.1
 
 # === MACHINE LEARNING ===
 sentence-transformers
