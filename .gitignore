@@ -43,6 +43,10 @@ logs/
 # Storage
 storage/
 qdrant_storage/
+storage/qdrant_storage/
+storage/qdrant_local/
+*.lock
+meta.json
 
 # Jupyter
 .ipynb_checkpoints/
