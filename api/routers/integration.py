@@ -62,6 +62,11 @@ def add_area_to_config(area_code: str, area_name: str) -> None:
                 # Asegurar que existe la clave "areas"
                 if "areas" not in data:
                     data["areas"] = {}
+                # Preservar comentarios e instrucciones si no existen
+                if "_comment" not in data:
+                    data["_comment"] = default_structure["_comment"]
+                if "_instructions" not in data:
+                    data["_instructions"] = default_structure["_instructions"]
         except Exception as e:
             logger.warning(f"Error al leer areas.json, usando estructura por defecto: {e}")
             data = default_structure
@@ -263,14 +268,33 @@ async def create_area(request: CreateAreaRequest) -> StandardResponse:
                     }
                 )
             
-            # Agregar área a config/areas.json
+            # Agregar área a config/areas.json (OBLIGATORIO)
             try:
                 add_area_to_config(area_code, request.name)
+                logger.success(f"Área '{area_code}' registrada en config/areas.json")
             except Exception as e:
-                logger.warning(f"Error al agregar área a config/areas.json: {e}")
-                # No fallar la creación si hay error al escribir el JSON
-                # El área ya está creada en el sistema de archivos
-                logger.warning("El área fue creada pero no se pudo actualizar config/areas.json. Puede agregarla manualmente.")
+                logger.error(f"Error crítico al agregar área a config/areas.json: {e}")
+                # Si falla el registro en JSON, el área no es válida para consultas
+                # Eliminar carpeta creada para mantener consistencia
+                try:
+                    if folder_path.exists():
+                        folder_path.rmdir()
+                        logger.info(f"Carpeta temporal eliminada: {folder_path}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Error al limpiar carpeta temporal: {cleanup_error}")
+                
+                # Lanzar excepción para indicar que la creación falló
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "statusCode": 500,
+                        "message": f"Error crítico: No se pudo registrar el área en config/areas.json. El área no será válida para consultas. Error: {str(e)}",
+                        "data": {
+                            "area_code": area_code,
+                            "error": str(e)
+                        }
+                    }
+                )
         
         # Preparar datos de respuesta
         area_data = AreaData(
